@@ -20,6 +20,16 @@ global.init_cache = function() {
 	});
 }
 
+
+// ROUTING
+
+// Always use application/json;charset=utf-8 as the Content-Type.
+app.use(function(req, res, next) {
+  res.contentType('application/json;charset=utf-8');
+  next();
+});
+
+
 // GET /routes.json
 // Returns a list of routes.
 app.get('/routes.json', function(req, res) {
@@ -35,7 +45,6 @@ app.get('/routes.json', function(req, res) {
 	routes[409] = { 'timetable_id' : 409, 'long_name' : 'Parkmore Industrial Estate - Eyre Square', 'short_name' : 'Parkmore' };
 	routes[410] = { 'timetable_id' : 410, 'long_name' : 'Oranmore - Eyre Square', 'short_name' : 'Oranmore' };
 	
-	res.set('Content-Type', 'application/json;charset=utf-8');
 	res.send(200, JSON.stringify(routes));
 	
 	global.routes = routes;
@@ -160,7 +169,6 @@ app.get('/routes/:timetable_id', function(req, res) {
 									// Check to see if we're finished downloading the stops.
 									if (counter >= total_requests) {
 										response_string = JSON.stringify(stops);
-										res.set('Content-Type', 'application/json;charset=utf-8');
 										res.send(200, response_string);
 									}
 									
@@ -172,7 +180,6 @@ app.get('/routes/:timetable_id', function(req, res) {
 					}		
 				}
 				
-				res.set('Content-Type', 'application/json;charset=utf-8');
 				res.send(code, response_string);
 			});
 			
@@ -190,7 +197,6 @@ app.get('/routes/:timetable_id', function(req, res) {
 		}
 	}
 
-	res.set('Content-Type', 'application/json;charset=utf-8');
 	res.send(code, response_string);
 });
 
@@ -210,7 +216,6 @@ app.get('/schedules.json', function(req, res) {
 	schedules[409] = [ {  'Parkmore Ind. Estate - Eyre Square' : 'http://www.buseireann.ie/pdf/1360756795-409_Parkmore-Ind-Estate-Eyre-Square.pdf' } ];
 	schedules[410] = [ {  'Eyre Square - Oranmore' : 'http://www.buseireann.ie/pdf/1360756796-410_Eyre-Square-Oranmore.pdf' }, { 'Oranmore - Eyre Square' : 'http://www.buseireann.ie/pdf/1360756797-410_Oranmore-Eyre-Square.pdf' } ];
 
-	res.set('Content-Type', 'application/json;charset=utf-8');
 	res.send(200, JSON.stringify(schedules));
 
 });
@@ -240,7 +245,6 @@ app.get('/stops.json', function(req, res) {
 		
 		// Respond with cached stops JSON.
 		if (!cache_expired) {
-			res.set('Content-Type', 'application/json;charset=utf-8');
 			res.send(global.stops_json_string);
 			console.log('Sending cached /stops response.');
 			return;	
@@ -313,10 +317,9 @@ app.get('/stops.json', function(req, res) {
 		}
 		
 		if (!response_string) {
-			response_string = '{\"error\" : \"An error occurred.\"}';
+			response_string = '{\"error\" : \"An error occurred.\", \"code\" : 500}';
 		}
 		
-		res.set('Content-Type', 'application/json;charset=utf-8');
 		res.send(code, response_string);
 	});
 })
@@ -435,10 +438,9 @@ app.get('/stops/:stop_ref', function(req, res) {
 						}
 						
 						if (!response_string) {
-							response_string = '{\"error\" : \"An error occurred.\"}';
+							response_string = '{\"error\" : \"An error occurred.\", \"code\" : 500}';
 						}
 						
-						res.set('Content-Type', 'application/json;charset=utf-8');
 						res.send(code, response_string);
 						
 					});
@@ -460,13 +462,18 @@ app.get('/stops/:stop_ref', function(req, res) {
 	}
 	
 	if (!response_string) {
-		response_string = '{\"error\" : \"An error occurred.\"}';
+		response_string = '{\"error\" : \"An error occurred.\", \"code\" : 500}';
 	}
 	
-	res.set('Content-Type', 'application/json;charset=utf-8');
 	res.send(code, response_string);
 	
 })
+
+
+// 404
+app.get('*', function(req, res){
+  res.send(404, '{\"error\" : \"An error occurred.\", \"code\" : 404}');
+});
 
 
 // Set up the server
