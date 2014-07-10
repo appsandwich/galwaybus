@@ -1,0 +1,16 @@
+{
+  "name"         : "galwaybus",
+  "version"      : "0.0.1",
+  "description"  : "Scrape the Galway Bus Eireann RTPI site and present the data in JSON format.",
+  "main"         : "index.js",
+  "author": {
+    "name": "Vinny Coyne",
+    "email": "vinny@appsandwich.com",
+    "url": "vinnycoyne.com"
+  },
+  "dependencies" : {
+	"express"    : "latest",
+	"request"    : "latest",
+	"cheerio"    : "latest"
+  }
+}
