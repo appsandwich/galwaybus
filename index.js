@@ -9,14 +9,10 @@ var port = Number(process.env.PORT || 8000);
 // Initialise caches
 global.init_cache = function() {
 	
-	console.log('Initialising cache...');
-	
 	request('http://localhost:' + port + '/routes.json', function(error, response, body) {
-		console.log('Routes cache initialised.');
 	});
 	
 	request('http://localhost:' + port + '/stops.json', function(error, response, body) {
-		console.log('Stops cache initialised.');
 	});
 }
 
