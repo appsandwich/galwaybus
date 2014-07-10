@@ -3,7 +3,7 @@ var request = require('request');
 var cheerio = require('cheerio');
 var app = express();
 
-var port = '80';
+var port = Number(process.env.PORT || 8000);
 
 
 // Initialise caches
