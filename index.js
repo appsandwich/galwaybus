@@ -1,3 +1,5 @@
+// Copyright (c) 2014 Vinny Coyne (http://www.vinnycoyne.com)
+
 var express = require('express');
 var request = require('request');
 var cheerio = require('cheerio');
