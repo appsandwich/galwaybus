@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+		<style type="text/css">
+		  html { height: 100% }
+		  body { height: 100%; margin: 0; padding: 0 }
+		  #map-canvas { height: 100% }
+		</style>
+		<script type="text/javascript"
+		  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCWoIYjuQu3mddpXih3efYdjIQOT2Q1anY">
+		</script>
+		<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.3/jquery.min.js"></script>
+		<script type="text/javascript" src="http://timeago.yarp.com/jquery.timeago.js"></script>
+		
+		<script type="text/javascript">
+			
+			jQuery.timeago.settings.allowFuture = true;
+			jQuery.timeago.settings.strings.inPast = "Due";
+			jQuery.timeago.settings.allowPast = false;
+			
+			var map = null;
+			var mapOptions = null;
+			
+			function initialize() {
+				mapOptions = {
+				  center: new google.maps.LatLng(53.274212,-9.049139),
+				  zoom: 13
+				};
+				map = new google.maps.Map(document.getElementById("map-canvas"),
+					mapOptions);
+			}
+			google.maps.event.addDomListener(window, 'load', initialize);
+			
+			
+			function timesForStopRef(stopRef, infowindow, map, marker) {
+				
+				$.getJSON('http://galwaybus.herokuapp.com/stops/' + stopRef +'.json', function (data) {
+					
+					var html = "<table><tr><td>Route</td><td>Destination</td><td>Time</td></tr>";
+					
+					data.times.forEach(function(time) {
+						
+						var hack_timestamp = '' + time.depart_timestamp;
+						hack_timestamp = hack_timestamp.substring(0, hack_timestamp.length - 5) + 'Z';
+						
+						html += "<tr><td>" + time.timetable_id + "</td><td>" + time.display_name + "</td><td>" + jQuery.timeago(hack_timestamp) + "</td></tr>";
+						
+					});
+					
+					html += "</table>";
+					
+					infowindow.setContent(html);
+					infowindow.open(map, marker);
+					
+				});
+			};
+			
+			
+			function getAllStops() {
+			
+				$.getJSON('http://galwaybus.herokuapp.com/stops.json', function (data) {
+					
+					data.forEach(function(stop) {
+						
+						// To add the marker to the map, use the 'map' property
+						var marker = new google.maps.Marker({
+						  	position: new google.maps.LatLng(stop.latitude,stop.longitude),
+						  	map: map,
+						  	title:stop.short_name
+						});
+						
+						var infowindow = new google.maps.InfoWindow({
+							content: stop.long_name
+						});
+						
+						google.maps.event.addListener(marker, 'click', function() {
+							infowindow.open(map,marker);
+							timesForStopRef(stop.stop_ref, infowindow, map, marker);
+						});
+						
+						marker.setMap(map);
+						
+					});
+				});
+			}
+		  
+		</script>
+		
+	</head>
+	<body onload="getAllStops();">
+		<div id="map-canvas"/>
+	</body>
+</html>

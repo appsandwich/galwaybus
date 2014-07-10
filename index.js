@@ -25,8 +25,18 @@ global.init_cache = function() {
 
 // Always use application/json;charset=utf-8 as the Content-Type.
 app.use(function(req, res, next) {
-  res.contentType('application/json;charset=utf-8');
-  next();
+	//console.log(req);
+	
+	if ((req.url == '/') || (req.url == '/index.html')) {
+		res.contentType('text/html');
+		console.log('text/html');
+	}
+	else {
+		res.contentType('application/json;charset=utf-8');
+		console.log('application/json;charset=utf-8');
+	}
+
+	next();
 });
 
 
@@ -481,8 +491,9 @@ app.get('/stops/:stop_ref', function(req, res) {
 	
 	res.send(code, response_string);
 	
-})
+});
 
+app.use('/', express.static(__dirname + '/public'));
 
 // 404
 app.get('*', function(req, res){
