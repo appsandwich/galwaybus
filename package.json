@@ -25,5 +25,9 @@
     "email": "vinny@appsandwich.com",
     "url": "vinnycoyne.com"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/appsandwich/galwaybus.git"
+  },
   "license": "MIT"
 }
