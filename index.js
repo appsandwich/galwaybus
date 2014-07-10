@@ -23,17 +23,15 @@ global.init_cache = function() {
 
 // ROUTING
 
-// Always use application/json;charset=utf-8 as the Content-Type.
+// Always use application/json;charset=utf-8 as the Content-Type,
+// except for the index.html request.
 app.use(function(req, res, next) {
-	//console.log(req);
 	
 	if ((req.url == '/') || (req.url == '/index.html')) {
 		res.contentType('text/html');
-		console.log('text/html');
 	}
 	else {
 		res.contentType('application/json;charset=utf-8');
-		console.log('application/json;charset=utf-8');
 	}
 
 	next();
@@ -213,9 +211,6 @@ app.get('/routes/:timetable_id', function(req, res) {
 			// No routes are present in cache, so call the /routes API to attempt a fetch
 			
 			var url = 'http://' + req.hostname + ':' + port + '/routes.json';
-			
-			console.log('Calling ' + url);
-			
 			request(url, function(error, response, body) {
 			});
 		}
@@ -263,14 +258,12 @@ app.get('/stops.json', function(req, res) {
 				global.stops_json_string = null;
 				global.formatted_stops = null;
 				global.stops_timestamp = null;
-				console.log('Stops cache has expired.');
 			}
 		}
 		
 		// Respond with cached stops JSON.
 		if (!cache_expired) {
 			res.send(global.stops_json_string);
-			console.log('Sending cached /stops response.');
 			return;	
 		}
 	}
@@ -477,9 +470,6 @@ app.get('/stops/:stop_ref', function(req, res) {
 			// No stops are present in cache, so call the /stops API to attempt a fetch
 			
 			var url = 'http://' + req.hostname + ':' + port + '/stops.json';
-			
-			console.log('Calling ' + url);
-			
 			request(url, function(error, response, body) {
 			});
 		}
@@ -503,6 +493,5 @@ app.get('*', function(req, res){
 
 // Set up the server
 app.listen(port);
-console.log('Listening on port ' + port + '.');
 exports = module.exports = app;
 global.init_cache();
