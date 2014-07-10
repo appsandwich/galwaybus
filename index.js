@@ -96,7 +96,7 @@ app.get('/routes/:timetable_id', function(req, res) {
 						if (json_services.length > 0) {
 							
 							var response_object = new Object();
-							response_object['route'] = timetable_id;
+							response_object['route'] = route;
 							
 							var stops_container = [];
 							
