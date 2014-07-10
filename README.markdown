@@ -4,6 +4,8 @@ The rtpi.ie website has access to real-time data for the Galway Bus Éireann tra
 
 **Live demo available at [http://galwaybus.herokuapp.com](http://galwaybus.herokuapp.com)**
 
+**For more info, visit [http://www.vinnycoyne.com](http://www.vinnycoyne.com)**
+
 ## Usage
 
 ### Routes
