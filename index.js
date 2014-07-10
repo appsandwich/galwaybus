@@ -95,7 +95,10 @@ app.get('/routes/:timetable_id', function(req, res) {
 						
 						if (json_services.length > 0) {
 							
-							var stops = [];
+							var response_object = new Object();
+							response_object['route'] = timetable_id;
+							
+							var stops_container = [];
 							
 							// Track the number of API requests, so that we know when we're finished.
 							var counter = 0;
@@ -131,6 +134,8 @@ app.get('/routes/:timetable_id', function(req, res) {
 									
 									if ((!service_error) && (service_response.statusCode == 200)) {
 										
+										var stops = [];
+										
 										// Parse the response into a valid JSON string.
 										json_string = JSON.stringify(service_body);
 										json_string = json_string.substring(26, json_string.length - 2).replace(/\\/g, '');
@@ -164,11 +169,20 @@ app.get('/routes/:timetable_id', function(req, res) {
 												
 											});
 										}
+										
+										if (stops.length > 0) {
+											stops_container.push(stops);
+										}
 									}
 									
 									// Check to see if we're finished downloading the stops.
 									if (counter >= total_requests) {
-										response_string = JSON.stringify(stops);
+										
+										if (stops_container.length > 0) {
+											response_object['stops'] = stops_container;
+										}
+										
+										response_string = JSON.stringify(response_object);
 										res.send(200, response_string);
 									}
 									
