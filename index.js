@@ -3,17 +3,19 @@ var request = require('request');
 var cheerio = require('cheerio');
 var app = express();
 
+var port = '8000';
+
 
 // Initialise caches
 global.init_cache = function() {
 	
 	console.log('Initialising cache...');
 	
-	request('http://localhost:8000/routes.json', function(error, response, body) {
+	request('http://localhost:' + port + '/routes.json', function(error, response, body) {
 		console.log('Routes cache initialised.');
 	});
 	
-	request('http://localhost:8000/stops.json', function(error, response, body) {
+	request('http://localhost:' + port + '/stops.json', function(error, response, body) {
 		console.log('Stops cache initialised.');
 	});
 }
@@ -179,7 +181,7 @@ app.get('/routes/:timetable_id', function(req, res) {
 		else {
 			// No routes are present in cache, so call the /routes API to attempt a fetch
 			
-			var url = 'http://' + req.hostname + ":8000" + '/routes.json';
+			var url = 'http://' + req.hostname + ':' + port + '/routes.json';
 			
 			console.log('Calling ' + url);
 			
@@ -448,7 +450,7 @@ app.get('/stops/:stop_ref', function(req, res) {
 		else {
 			// No stops are present in cache, so call the /stops API to attempt a fetch
 			
-			var url = 'http://' + req.hostname + ":8000" + '/stops.json';
+			var url = 'http://' + req.hostname + ':' + port + '/stops.json';
 			
 			console.log('Calling ' + url);
 			
@@ -468,7 +470,7 @@ app.get('/stops/:stop_ref', function(req, res) {
 
 
 // Set up the server
-app.listen('8000');
-console.log('Listening on port 8000.');
+app.listen(port);
+console.log('Listening on port ' + port + '.');
 exports = module.exports = app;
 global.init_cache();
