@@ -254,7 +254,7 @@ app.get('/stops.json', function(req, res) {
 			if (now > global.stops_timestamp) {
 				cache_expired = true;
 				global.stops_json_string = null;
-				global.formatted_stops = null;
+				// global.formatted_stops = null;
 				global.stops_timestamp = null;
 			}
 		}
