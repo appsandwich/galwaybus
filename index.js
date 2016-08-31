@@ -395,50 +395,67 @@ app.get('/stops/:stop_ref', function(req, res) {
 									
 									// Each <tr> holds the following data: 
 									// <td>timetable_id</td> <td>display_name</td> <td>depart_timestamp</td> <td>&nbsp;</td>
+									// <td>timetable_id</td><td>&nbsp;</td><td>display_name</td><td>&nbsp;</td><td>depart_timestamp</td><td">low_floor</td>
 									
 									// Loop through each <td> and extract the data.
+
+									var index = 0;
 									
 									td_array.each(function(td_index, td) {
 										
 										var value = td.children[0].data;
-										
-										if (!time['timetable_id']) {
-											time['timetable_id'] = value;
-										}
-										else if (!time['display_name']) {
-											time['display_name'] = value;
-										}
-										else if (!time['depart_timestamp']) {
-											
-											var nowDateTime = new Date();
-											var now = nowDateTime.getTime();
-											
-											
-											// The timestamp can be in three different formats: Due, X Mins, HH:mm.
-											
-											if (value == 'Due') {
-												time['depart_timestamp'] = now;
+
+										switch (index) {
+											case 0: {
+												time['timetable_id'] = value;
+												break;
 											}
-											else {
+											case 2: {
+												time['display_name'] = value;
+												break;
+											}
+											case 4: {
+
+												var nowDateTime = new Date();
+												var now = nowDateTime.getTime();
 												
-												if (value.indexOf('Min') != -1) {
-													var remaining_mins = parseInt(value.replace('Mins', '').replace('Min', ''));
-													time['depart_timestamp'] = new Date(nowDateTime.getTime() + remaining_mins*60000);
+												
+												// The timestamp can be in three different formats: Due, X Mins, HH:mm.
+												
+												if (value == 'Due') {
+													time['depart_timestamp'] = now;
 												}
 												else {
 													
-													var t = value.split(':');  
+													if (value.indexOf('Min') != -1) {
+														var remaining_mins = parseInt(value.replace('Mins', '').replace('Min', ''));
+														time['depart_timestamp'] = new Date(nowDateTime.getTime() + remaining_mins*60000);
+													}
+													else {
+														
+														var t = value.split(':');  
+														
+														nowDateTime.setHours(+t[0]);
+														nowDateTime.setMinutes(t[1]);
+														
+														time['depart_timestamp'] = nowDateTime;
+													}
 													
-													nowDateTime.setHours(+t[0]);
-													nowDateTime.setMinutes(t[1]);
-													
-													time['depart_timestamp'] = nowDateTime;
+													times.push(time);
 												}
-												
-												times.push(time);
+
+												break;
+											}
+											case 5: {
+												time['low_floor'] = (value.indexOf('Yes') != -1);
+												break;
+											}
+											default: {
+												break;
 											}
 										}
-										
+
+										index++;
 									});
 								}								
 								
