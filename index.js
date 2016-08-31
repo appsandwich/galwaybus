@@ -78,7 +78,7 @@ app.get('/routes/:timetable_id', function(req, res) {
 			// which we then use to get the list of stops along the route.
 			
 			var options = {
-				uri: 'http://rtpi.ie/ConnectService.svc/GetPublicServicesForCriteriaSerialized',
+				uri: 'http://www.rtpi.ie/ConnectService.svc/GetPublicServicesForCriteriaSerialized',
 				method: 'POST',
 				json: {
 					'searchString' : timetable_id,
@@ -87,7 +87,7 @@ app.get('/routes/:timetable_id', function(req, res) {
 			};
 			
 			request(options, function(error, response, body) {
-				
+
 				if ((!error) && (response.statusCode == 200)) {
 					
 					// Parse the response into a valid JSON string.
@@ -123,7 +123,7 @@ app.get('/routes/:timetable_id', function(req, res) {
 								});
 								
 								var service_options = {
-									uri: 'http://rtpi.ie/ConnectService.svc/GetServiceDataSerialized',
+									uri: 'http://www.rtpi.ie/ConnectService.svc/GetServiceDataSerialized',
 									method: 'POST',
 									json: {
 										'publicServiceCode' : timetable_id,
@@ -270,7 +270,7 @@ app.get('/stops.json', function(req, res) {
 	// Call the RTPI API to get all stops available in the Galway region.
 	
 	var options = {
-		uri: 'http://rtpi.ie/ConnectService.svc/GetClusteredStops',
+		uri: 'http://www.rtpi.ie/ConnectService.svc/GetClusteredStops',
 		method: 'POST',
 		json: {
 			'topLeft': { 'lon' : -9.1775166093531, 'lat' : 53.346860746602, 'CLASS_NAME' : 'OpenLayers.LonLat' },
@@ -293,8 +293,8 @@ app.get('/stops.json', function(req, res) {
 			if (json_string.length > 0) {
 				
 				var json = JSON.parse(json_string);
-				var json_stops = json['AllFoundStops'];
-				
+				var json_stops = json['Stops'];
+
 				if (json_stops.length > 0) {
 					
 					var formatted_stops = [];
@@ -371,7 +371,7 @@ app.get('/stops/:stop_ref', function(req, res) {
 					// We actually scrape the mobile/text-only website here, as there doesn't
 					// seem to be a visible API that allows us to do similar.
 					
-					var url = 'http://rtpi.ie/Text/WebDisplay.aspx?stopRef=' + stop_ref;
+					var url = 'http://www.rtpi.ie/Text/WebDisplay.aspx?stopRef=' + stop_ref;
 					
 					request(url, function(error, response, body) {
 						
