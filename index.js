@@ -274,7 +274,7 @@ app.get('/stops.json', function(req, res) {
 		method: 'POST',
 		json: {
 			'topLeft': { 'lon' : -9.1775166093531, 'lat' : 53.346860746602, 'CLASS_NAME' : 'OpenLayers.LonLat' },
-			'bottomRight': { 'lon' : -8.9358173906463, 'lat' : 53.194102800494, 'CLASS_NAME' : 'OpenLayers.LonLat' },
+			'bottomRight': { 'lon' : -8.9258173906463, 'lat' : 53.194102800494, 'CLASS_NAME' : 'OpenLayers.LonLat' },
 			'zoomLevel' : 10
 		}
 	};
@@ -285,48 +285,136 @@ app.get('/stops.json', function(req, res) {
 		var code = 500;
 		
 		if ((!error) && (response.statusCode == 200)) {
-			
-			// Parse the response into a valid JSON string.
-			var json_string = JSON.stringify(body);
-			json_string = json_string.substring(22, json_string.length - 2).replace(/\\/g, '');
-			
-			if (json_string.length > 0) {
-				
-				var json = JSON.parse(json_string);
-				var json_stops = json['Stops'];
 
-				if (json_stops.length > 0) {
-					
-					var formatted_stops = [];
-					
-					// Make the format look pretty :)
-					json_stops.forEach(function(json_stop) {
-						
-						formatted_stop = new Object();
-						formatted_stop['short_name'] = json_stop['StopNameShort'];
-						formatted_stop['long_name'] = json_stop['StopNameLong'];
-						formatted_stop['stop_id'] = json_stop['StopId'];
-						formatted_stop['stop_ref'] = json_stop['StopRef'];
-						formatted_stop['irish_short_name'] = json_stop['AltStopNameShort'];
-						formatted_stop['irish_long_name'] = json_stop['AltStopNameLong'];
-						formatted_stop['latitude'] = json_stop['Latitude'];
-						formatted_stop['longitude'] = json_stop['Longitude'];
-						
+			// Parse the response into a valid JSON string.
+			var convert_to_json = function(response_body) {
+				var json_string = JSON.stringify(response_body);
+				json_string = json_string.substring(22, json_string.length - 2).replace(/\\/g, '');
+				return json_string;
+			};
+
+			// Parse the response into a JSON string, then 
+			// get the Stops array from the JSON object.
+			var body_to_stops = function(response_body) {
+
+				var json_string = convert_to_json(response_body);
+			
+				if (json_string.length > 0) {
+
+					var json = JSON.parse(json_string);
+					return json['Stops'];
+				}
+
+				return null;
+			};
+
+
+
+			var json_stops = body_to_stops(body);
+
+			if ((json_stops != null) && (json_stops.length > 0)) {
+
+				global.formatted_stops = [];
+				
+				var formatted_stops = [];
+				var formatted_cluster_stops = [];
+
+				var cluster_count = 0;
+				var cluster_response_count = 0;
+
+
+				// Create an object from the Stop JSON data.
+				var parse_stop = function(json_stop_object) {
+
+					formatted_stop = new Object();
+					formatted_stop['short_name'] = json_stop_object['StopNameShort'];
+					formatted_stop['long_name'] = json_stop_object['StopNameLong'];
+					formatted_stop['stop_id'] = json_stop_object['StopId'];
+					formatted_stop['stop_ref'] = json_stop_object['StopRef'];
+					formatted_stop['irish_short_name'] = json_stop_object['AltStopNameShort'];
+					formatted_stop['irish_long_name'] = json_stop_object['AltStopNameLong'];
+					formatted_stop['latitude'] = json_stop_object['Latitude'];
+					formatted_stop['longitude'] = json_stop_object['Longitude'];
+
+					return formatted_stop;
+				};
+				
+
+				json_stops.forEach(function(json_stop) {
+
+					// If we have a cluster of stops, we need to make an additional
+					// API request to get the stops in the cluster.
+
+					if (1 == json_stop["ClusterCount"]) {
+						var formatted_stop = parse_stop(json_stop);
 						formatted_stops.push(formatted_stop);
-					});
-					
-					response_string = JSON.stringify(formatted_stops);
-					
-					if (response_string.length > 0) {
-						global.stops_json_string = response_string;
-						global.formatted_stops = formatted_stops;
-						
-						// Refresh the cache every 24 hours
-						var expiry_date = new Date();
-						expiry_date.setDate(expiry_date.getDate() + 1);
-						global.stops_timestamp = expiry_date;
-						code = 200;
 					}
+					else {
+
+						// Send the cluster API request.
+
+						cluster_count++;
+
+						var cluster_options = {
+							uri: 'http://www.rtpi.ie/ConnectService.svc/GetStopsForCluster',
+							method: 'POST',
+							json: {
+								'clusterID' : json_stop['ClusterId']
+							}
+						};
+
+						request(cluster_options, function(cluster_error, cluster_response, cluster_body) {
+							
+							var cluster_response_string = null;
+							var cluster_code = 500;
+
+							cluster_response_count++;
+							
+							if ((!cluster_error) && (cluster_response.statusCode == 200)) {
+
+								var cluster_json_stops = body_to_stops(cluster_body);
+
+								if (cluster_json_stops.length > 0) {
+
+									cluster_json_stops.forEach(function(json_stop) {
+										var formatted_stop = parse_stop(json_stop);
+										formatted_cluster_stops.push(formatted_stop);
+									});
+								}
+							}
+
+							if (cluster_count == cluster_response_count) {
+
+								global.formatted_stops.push.apply(global.formatted_stops, formatted_cluster_stops);
+
+								response_string = JSON.stringify(global.formatted_stops);
+
+								global.stops_json_string = response_string;
+
+								if (!response_string) {
+									response_string = '{\"error\" : \"An error occurred.\", \"code\" : 500}';
+									code = 500;
+								}
+
+								res.send(code, response_string);
+							}
+						});
+					}
+				});
+				
+				response_string = JSON.stringify(formatted_stops);
+				
+				if (response_string.length > 0) {
+
+					global.stops_json_string = response_string;
+
+					global.formatted_stops.push.apply(global.formatted_stops, formatted_stops);
+					
+					// Refresh the cache every 24 hours
+					var expiry_date = new Date();
+					expiry_date.setDate(expiry_date.getDate() + 1);
+					global.stops_timestamp = expiry_date;
+					code = 200;
 				}
 			}
 		}
@@ -335,7 +423,10 @@ app.get('/stops.json', function(req, res) {
 			response_string = '{\"error\" : \"An error occurred.\", \"code\" : 500}';
 		}
 		
-		res.send(code, response_string);
+		// Only respond here, if there are no clusters on the map.
+		if (0 == cluster_count) {
+			res.send(code, response_string);
+		}
 	});
 })
 
