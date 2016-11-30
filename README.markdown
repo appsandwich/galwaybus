@@ -27,6 +27,10 @@ The rtpi.ie website has access to real-time data for the Galway Bus Éireann tra
 * **`GET /stops/<stop_ref>.json`**
 
  Returns a list of departure times for a given bus stop. Use the `stop_ref` retrieved from the `stops.json` API.
+
+* **`GET /nearby.json?latitude=<latitude>&longitude=<longitude>`**
+
+	Lists ten nearest stops to the coordinates provided in the `latitude` and `longitude' URL parameters.
  
  
 ### Schedules
