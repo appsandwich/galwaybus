@@ -39,7 +39,7 @@ app.use(function(req, res, next) {
 
 // GET /nearby.json
 // Returns list of nearby stops.
-app.get('/nearby.json', function(req, res) {
+app.get('/stops/nearby.json', function(req, res) {
 
 	var units = "meters";
 
