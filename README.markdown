@@ -30,7 +30,7 @@ The rtpi.ie website has access to real-time data for the Galway Bus Éireann tra
 
 * **`GET /nearby.json?latitude=<latitude>&longitude=<longitude>`**
 
-	Lists ten nearest stops to the coordinates provided in the `latitude` and `longitude' URL parameters.
+	Lists ten nearest stops to the coordinates provided in the `latitude` and `longitude` URL parameters.
  
  
 ### Schedules
