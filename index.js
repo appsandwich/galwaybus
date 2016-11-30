@@ -3,6 +3,7 @@
 var express = require('express');
 var request = require('request');
 var cheerio = require('cheerio');
+var turf = require('@turf/turf');
 var app = express();
 
 var port = Number(process.env.PORT || 8000);
@@ -33,6 +34,45 @@ app.use(function(req, res, next) {
 	}
 
 	next();
+});
+
+
+// GET /nearby.json
+// Returns list of nearby stops.
+app.get('/nearby.json', function(req, res) {
+
+	var units = "meters";
+
+	var latitude = parseFloat(req.query.latitude);
+	var longitude = parseFloat(req.query.longitude);
+
+	var point = turf.point([longitude, latitude]);
+
+	var point_from_stop = function(stop) {
+
+		var lat = parseFloat(stop['latitude']);
+		var lon = parseFloat(stop['longitude']);
+
+		var stop_point = turf.point([lon, lat]);
+
+		return stop_point;
+
+	};
+
+	var sort_distance = function(s1, s2) {
+
+		var p1 = point_from_stop(s1);
+		var p2 = point_from_stop(s2);
+
+		var d1 = turf.distance(point, p1, units);
+		var d2 = turf.distance(point, p2, units);
+
+		return d1 - d2;
+	};
+
+	var sorted_stops = global.formatted_stops.sort(sort_distance).slice(0, 10);
+	
+	res.send(200, JSON.stringify(sorted_stops));
 });
 
 

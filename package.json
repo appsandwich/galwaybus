@@ -4,6 +4,7 @@
   "description": "Scrape the rtpe.ie site for Galway Bus Eireann RTPI data.",
   "main": "index.js",
   "dependencies": {
+    "@turf/turf": "^3.7.0",
     "cheerio": "~0.17.0",
     "express": "~4.5.1",
     "request": "~2.37.0"
