@@ -198,6 +198,9 @@ app.get('/stops/nearby.json', function(req, res) {
 		});
 
 	  res.send(200, JSON.stringify(sorted_stops_with_times));
+	}).catch(error => {
+		// Fall back to returning just the stops.
+		res.send(200, JSON.stringify(sorted_stops));
 	});
 });
 
