@@ -19,6 +19,120 @@ global.init_cache = function() {
 	});
 }
 
+// PARSING
+
+var parseTimesForStopRef = function(stop_ref) {
+
+	return new Promise((resolve, reject) => {
+
+		// Call the RTPI API to retrieve the latest departure times at that stop.
+		// We actually scrape the mobile/text-only website here, as there doesn't
+		// seem to be a visible API that allows us to do similar.
+		
+		var url = 'http://www.rtpi.ie/Text/WebDisplay.aspx?stopRef=' + stop_ref;
+		
+		request(url, function(error, response, body) {
+			
+			if (!error) {
+				
+				// Load the response body/HTML into Cheerio for parsing.
+				var $ = cheerio.load(body);
+				
+				var times = [];
+				
+				
+				// Find the times <table> and loop through each <tr>.
+				
+				$("table.webDisplayTable tr").each(function(tr_index, tr) { 
+					
+					var time = new Object();
+					
+					var td_array = $(this).find("td"); 
+
+					if (td_array.length > 0) {
+						
+						// Each <tr> holds the following data: 
+						// <td>timetable_id</td> <td>display_name</td> <td>depart_timestamp</td> <td>&nbsp;</td>
+						// <td>timetable_id</td><td>&nbsp;</td><td>display_name</td><td>&nbsp;</td><td>depart_timestamp</td><td">low_floor</td>
+						
+						// Loop through each <td> and extract the data.
+
+						var index = 0;
+						
+						td_array.each(function(td_index, td) {
+							
+							var value = td.children[0].data;
+
+							switch (index) {
+								case 0: {
+									time['timetable_id'] = value;
+									break;
+								}
+								case 2: {
+									time['display_name'] = value;
+									break;
+								}
+								case 4: {
+
+									var nowDateTime = new Date();
+									var now = nowDateTime.getTime();
+									
+									
+									// The timestamp can be in three different formats: Due, X Mins, HH:mm.
+									
+									if (value == 'Due') {
+										time['depart_timestamp'] = now;
+									}
+									else {
+										
+										if (value.indexOf('Min') != -1) {
+											var remaining_mins = parseInt(value.replace('Mins', '').replace('Min', ''));
+											time['depart_timestamp'] = new Date(nowDateTime.getTime() + remaining_mins*60000);
+										}
+										else {
+											
+											var t = value.split(':');  
+											
+											nowDateTime.setHours(+t[0]);
+											nowDateTime.setMinutes(t[1]);
+											
+											time['depart_timestamp'] = nowDateTime;
+										}
+										
+										times.push(time);
+									}
+
+									break;
+								}
+								case 5: {
+									time['low_floor'] = (value.indexOf('Yes') != -1);
+									break;
+								}
+								default: {
+									break;
+								}
+							}
+
+							index++;
+						});
+					}								
+					
+					
+				});
+				
+				resolve(times);
+
+				return;
+			}
+
+			reject('{\"error\" : \"An error occurred.\", \"code\" : 500}');
+			
+		});
+		
+	});
+
+};
+
 
 // ROUTING
 
@@ -71,8 +185,20 @@ app.get('/stops/nearby.json', function(req, res) {
 	};
 
 	var sorted_stops = global.formatted_stops.sort(sort_distance).slice(0, 10);
-	
-	res.send(200, JSON.stringify(sorted_stops));
+
+	var sorted_stop_ref_promises = sorted_stops.map(function(stop) {
+		return parseTimesForStopRef(stop['stop_ref']);
+	});
+
+	Promise.all(sorted_stop_ref_promises).then(times => { 
+
+		var sorted_stops_with_times = sorted_stops.map(function(stop, index) {
+			stop['times'] = times[index];
+			return stop;
+		});
+
+	  res.send(200, JSON.stringify(sorted_stops_with_times));
+	});
 });
 
 
@@ -496,116 +622,13 @@ app.get('/stops/:stop_ref', function(req, res) {
 					// Store the stop object for the API response.
 					var stop = new Object();
 					stop['stop'] = matched_stops[0];
-					
-					
-					// Call the RTPI API to retrieve the latest departure times at that stop.
-					// We actually scrape the mobile/text-only website here, as there doesn't
-					// seem to be a visible API that allows us to do similar.
-					
-					var url = 'http://www.rtpi.ie/Text/WebDisplay.aspx?stopRef=' + stop_ref;
-					
-					request(url, function(error, response, body) {
-						
-						if (!error) {
-							
-							// Load the response body/HTML into Cheerio for parsing.
-							var $ = cheerio.load(body);
-							
-							var times = [];
-							
-							
-							// Find the times <table> and loop through each <tr>.
-							
-							$("table.webDisplayTable tr").each(function(tr_index, tr) { 
-								
-								var time = new Object();
-								
-								var td_array = $(this).find("td"); 
 
-								if (td_array.length > 0) {
-									
-									// Each <tr> holds the following data: 
-									// <td>timetable_id</td> <td>display_name</td> <td>depart_timestamp</td> <td>&nbsp;</td>
-									// <td>timetable_id</td><td>&nbsp;</td><td>display_name</td><td>&nbsp;</td><td>depart_timestamp</td><td">low_floor</td>
-									
-									// Loop through each <td> and extract the data.
-
-									var index = 0;
-									
-									td_array.each(function(td_index, td) {
-										
-										var value = td.children[0].data;
-
-										switch (index) {
-											case 0: {
-												time['timetable_id'] = value;
-												break;
-											}
-											case 2: {
-												time['display_name'] = value;
-												break;
-											}
-											case 4: {
-
-												var nowDateTime = new Date();
-												var now = nowDateTime.getTime();
-												
-												
-												// The timestamp can be in three different formats: Due, X Mins, HH:mm.
-												
-												if (value == 'Due') {
-													time['depart_timestamp'] = now;
-												}
-												else {
-													
-													if (value.indexOf('Min') != -1) {
-														var remaining_mins = parseInt(value.replace('Mins', '').replace('Min', ''));
-														time['depart_timestamp'] = new Date(nowDateTime.getTime() + remaining_mins*60000);
-													}
-													else {
-														
-														var t = value.split(':');  
-														
-														nowDateTime.setHours(+t[0]);
-														nowDateTime.setMinutes(t[1]);
-														
-														time['depart_timestamp'] = nowDateTime;
-													}
-													
-													times.push(time);
-												}
-
-												break;
-											}
-											case 5: {
-												time['low_floor'] = (value.indexOf('Yes') != -1);
-												break;
-											}
-											default: {
-												break;
-											}
-										}
-
-										index++;
-									});
-								}								
-								
-								
-							});
-							
-							// Store the times for API response.
-							stop['times'] = times;
-							
-							response_string = JSON.stringify(stop);
-							code = 200;
-						}
-						
-						if (!response_string) {
-							response_string = '{\"error\" : \"An error occurred.\", \"code\" : 500}';
-						}
-						
-						res.send(code, response_string);
-						
+					parseTimesForStopRef(stop['stop']['stop_ref']).then(times => {
+						// Store the times for API response.
+						stop['times'] = times;
+						res.send(200, JSON.stringify(stop));
+					}).catch(error => {
+						res.send(500, error);
 					});
 					
 					return;
