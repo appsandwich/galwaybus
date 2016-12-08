@@ -181,6 +181,9 @@ app.get('/stops/nearby.json', function(req, res) {
 		var d1 = turf.distance(point, p1, units);
 		var d2 = turf.distance(point, p2, units);
 
+		s1['distance'] = d1;
+		s2['distance'] = d2;
+
 		return d1 - d2;
 	};
 
