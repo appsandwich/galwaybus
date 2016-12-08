@@ -287,6 +287,11 @@ app.get('/routes/:timetable_id', function(req, res) {
 							// which we then use to retrieve the stops.
 							
 							json_services.forEach(function(service) {
+
+								var goingFrom = service['GoingFrom'];
+								var goingTo = service['GoingTo'];
+								var altGoingFrom = service['AltGoingFrom'];
+								var altGoingTo = service['AltGoingTo'];
 								
 								var service_variant_ids_string = '';
 								
@@ -340,6 +345,13 @@ app.get('/routes/:timetable_id', function(req, res) {
 														
 														matched_stop['latitude'] = sub_stop['Latitude'];
 														matched_stop['longitude'] = sub_stop['Longitude'];
+
+														matched_stop['from'] = goingFrom;
+														matched_stop['to'] = goingTo;
+
+														matched_stop['irish_from'] = altGoingFrom;
+														matched_stop['irish_to'] = altGoingTo;
+
 														
 														stops.push(matched_stop);
 													});
