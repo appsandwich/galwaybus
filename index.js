@@ -11,6 +11,8 @@ var port = Number(process.env.PORT || 8000);
 
 // Initialise caches
 global.init_cache = function() {
+
+	global.translations = [];
 	
 	request('http://localhost:' + port + '/routes.json', function(error, response, body) {
 	});
@@ -69,7 +71,15 @@ var parseTimesForStopRef = function(stop_ref) {
 									break;
 								}
 								case 2: {
+
 									time['display_name'] = value;
+
+									var translation = global.translations[value];
+
+									if ((translation != null) && (translation.length > 0)) {
+										time['irish_display_name'] = translation;
+									}
+
 									break;
 								}
 								case 4: {
@@ -351,6 +361,9 @@ app.get('/routes/:timetable_id', function(req, res) {
 
 														matched_stop['irish_from'] = altGoingFrom;
 														matched_stop['irish_to'] = altGoingTo;
+
+														global.translations[goingFrom] = altGoingFrom;
+														global.translations[goingTo] = altGoingTo;
 
 														
 														stops.push(matched_stop);
