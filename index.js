@@ -511,11 +511,11 @@ app.get('/stops.json', function(req, res) {
 				var parse_stop = function(json_stop_object) {
 
 					formatted_stop = new Object();
-					formatted_stop['short_name'] = json_stop_object['StopNameShort'];
+					formatted_stop['short_name'] = json_stop_object['StopName'];
 					formatted_stop['long_name'] = json_stop_object['StopNameLong'];
 					formatted_stop['stop_id'] = json_stop_object['StopId'];
 					formatted_stop['stop_ref'] = json_stop_object['StopRef'];
-					formatted_stop['irish_short_name'] = json_stop_object['AltStopNameShort'];
+					formatted_stop['irish_short_name'] = json_stop_object['AltStopName'];
 					formatted_stop['irish_long_name'] = json_stop_object['AltStopNameLong'];
 					formatted_stop['latitude'] = json_stop_object['Latitude'];
 					formatted_stop['longitude'] = json_stop_object['Longitude'];
