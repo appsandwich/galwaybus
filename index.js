@@ -2,137 +2,123 @@
 
 var express = require('express');
 var request = require('request');
+var bodyParser = require('body-parser');
 var cheerio = require('cheerio');
 var turf = require('@turf/turf');
+var moment = require('moment-timezone');
 var app = express();
 
 var port = Number(process.env.PORT || 8000);
+
+// parse application/json
+app.use(bodyParser.json());
 
 
 // Initialise caches
 global.init_cache = function() {
 
+	global.formatted_routes_strings = {};
+	global.formatted_routes_timestamps = {};
+
 	global.translations = [];
+
+	global.bus_locations = {}
 	
 	request('http://localhost:' + port + '/routes.json', function(error, response, body) {
+
+		// Warm up the cache for each route.
+
+		if ((!error) && (response.statusCode == 200)) {
+
+			var json = JSON.parse(body);
+
+			for (var key in json) {
+
+				if (json.hasOwnProperty(key)) {
+					
+					request('http://localhost:' + port + '/routes/' + key + '.json', function(e, r, b) {
+					});
+				}
+			}
+		}
+
 	});
 	
 	request('http://localhost:' + port + '/stops.json', function(error, response, body) {
 	});
+
+	console.log("Cache initialised.");
 }
 
 // PARSING
 
-var parseTimesForStopRef = function(stop_ref) {
+var parseRealTimesForStopRef = function(stop_ref) {
 
 	return new Promise((resolve, reject) => {
 
-		// Call the RTPI API to retrieve the latest departure times at that stop.
-		// We actually scrape the mobile/text-only website here, as there doesn't
-		// seem to be a visible API that allows us to do similar.
-		
-		var url = 'http://www.rtpi.ie/Text/WebDisplay.aspx?stopRef=' + stop_ref;
+		var url = 'https://data.dublinked.ie/cgi-bin/rtpi/realtimebusinformation?operator=be&stopid=' + stop_ref;
 		
 		request(url, function(error, response, body) {
 			
 			if (!error) {
-				
-				// Load the response body/HTML into Cheerio for parsing.
-				var $ = cheerio.load(body);
-				
-				var times = [];
-				
-				
-				// Find the times <table> and loop through each <tr>.
-				
-				$("table.webDisplayTable tr").each(function(tr_index, tr) { 
-					
-					var time = new Object();
-					
-					var td_array = $(this).find("td"); 
 
-					if (td_array.length > 0) {
-						
-						// Each <tr> holds the following data: 
-						// <td>timetable_id</td> <td>display_name</td> <td>depart_timestamp</td> <td>&nbsp;</td>
-						// <td>timetable_id</td><td>&nbsp;</td><td>display_name</td><td>&nbsp;</td><td>depart_timestamp</td><td">low_floor</td>
-						
-						// Loop through each <td> and extract the data.
+				if ((!error) && (response.statusCode == 200)) {
 
-						var index = 0;
-						
-						td_array.each(function(td_index, td) {
-							
-							var value = td.children[0].data;
+					var json = JSON.parse(body);
 
-							switch (index) {
-								case 0: {
-									time['timetable_id'] = value;
-									break;
+					var error_code = json["errorcode"];
+
+					if ((error_code) && ((parseInt(error_code) == 0) || (parseInt(error_code) == 1))) {
+
+						var results = json["results"];
+
+						var times = [];
+
+						var is_dst = moment.tz("Europe/Dublin").isDST();
+
+						var parse_time = function(json_time_object) {
+
+							formatted_time = new Object();
+							formatted_time['display_name'] = json_time_object['destination'];
+							formatted_time['irish_display_name'] = json_time_object['destinationlocalized'];
+							formatted_time['timetable_id'] = json_time_object['route'];
+							formatted_time['low_floor'] = json_time_object['lowfloorstatus'] === 'yes';
+
+
+							// Convert 'dd/MM/yyyy HH:mm:ss' string into ISO format.
+
+							var date_string = json_time_object['departuredatetime'];
+
+							if ((date_string != null) && (date_string.length > 0)) {
+
+								var date_string_with_tz = "";
+
+								// Bloody API doesn't specify time with timezone.
+								if (is_dst == true) {
+									date_string_with_tz = date_string + "+0100";
 								}
-								case 2: {
-
-									time['display_name'] = value;
-
-									var translation = global.translations[value];
-
-									if ((translation != null) && (translation.length > 0)) {
-										time['irish_display_name'] = translation;
-									}
-
-									break;
+								else {
+									date_string_with_tz = date_string + "+0000";
 								}
-								case 4: {
 
-									var nowDateTime = new Date();
-									var now = nowDateTime.getTime();
-									
-									
-									// The timestamp can be in three different formats: Due, X Mins, HH:mm.
-									
-									if (value == 'Due') {
-										time['depart_timestamp'] = now;
-									}
-									else {
-										
-										if (value.indexOf('Min') != -1) {
-											var remaining_mins = parseInt(value.replace('Mins', '').replace('Min', ''));
-											time['depart_timestamp'] = new Date(nowDateTime.getTime() + remaining_mins*60000);
-										}
-										else {
-											
-											var t = value.split(':');  
-											
-											nowDateTime.setHours(+t[0]);
-											nowDateTime.setMinutes(t[1]);
-											
-											time['depart_timestamp'] = nowDateTime;
-										}
-										
-										times.push(time);
-									}
+								var m = moment(date_string_with_tz, "DD/MM/yyyy HH:mm:ssZ");
 
-									break;
-								}
-								case 5: {
-									time['low_floor'] = (value.indexOf('Yes') != -1);
-									break;
-								}
-								default: {
-									break;
-								}
+								formatted_time['depart_timestamp'] = m.toISOString();
 							}
 
-							index++;
-						});
-					}								
-					
-					
-				});
-				
-				resolve(times);
+							return formatted_time;
+						};
 
-				return;
+						// Convert JSON to native object.
+						times = results.map(function(json_time) {
+							return parse_time(json_time);
+						});
+
+						resolve(times);
+
+						return;
+					}
+				}				
 			}
 
 			reject('{\"error\" : \"An error occurred.\", \"code\" : 500}');
@@ -200,7 +186,7 @@ app.get('/stops/nearby.json', function(req, res) {
 	var sorted_stops = global.formatted_stops.sort(sort_distance).slice(0, 10);
 
 	var sorted_stop_ref_promises = sorted_stops.map(function(stop) {
-		return parseTimesForStopRef(stop['stop_ref']);
+		return parseRealTimesForStopRef(stop['stop_ref']);
 	});
 
 	Promise.all(sorted_stop_ref_promises).then(times => { 
@@ -248,6 +234,37 @@ app.get('/routes/:timetable_id', function(req, res) {
 	var code = 500;
 	
 	if (timetable_id) {
+
+		if (global.formatted_routes_strings) {
+
+			var cached_route = global.formatted_routes_strings[parseInt(timetable_id)];
+
+			if ((cached_route) && (cached_route.length > 0)) {
+
+				var cache_expired = false;
+				
+				// Flush the cache if older than 1 day.
+				var timestamp = global.formatted_routes_timestamps[parseInt(timetable_id)];
+
+				if (timestamp) {
+
+					var now = new Date();
+					
+					if (now > timestamp) {
+						cache_expired = true;
+						global.formatted_routes_strings[parseInt(timetable_id)] = null;
+						global.formatted_routes_timestamps[parseInt(timetable_id)] = null;
+					}
+				}
+				
+				// Respond with cached route JSON.
+				if (!cache_expired) {
+					console.log("/routes/" + timetable_id + ".json hitting cache.")
+					res.send(200, cached_route);
+					return;	
+				}
+			}
+		}
 		
 		if (global.routes) {
 			
@@ -255,150 +272,111 @@ app.get('/routes/:timetable_id', function(req, res) {
 			var route = global.routes[parseInt(timetable_id)];
 			
 			
-			// Call the RTPI API to retrieve the "services",
-			// which we then use to get the list of stops along the route.
-			
 			var options = {
-				uri: 'http://www.rtpi.ie/ConnectService.svc/GetPublicServicesForCriteriaSerialized',
-				method: 'POST',
-				json: {
-					'searchString' : timetable_id,
-					'districtId' : -1
-				}
+				uri: 'https://data.dublinked.ie/cgi-bin/rtpi/routeinformation?operator=be&routeid=' + timetable_id
 			};
 			
 			request(options, function(error, response, body) {
 
 				if ((!error) && (response.statusCode == 200)) {
-					
-					// Parse the response into a valid JSON string.
-					var json_string = JSON.stringify(body);
-					json_string = json_string.substring(34, json_string.length - 2).replace(/\\/g, '');
-					
-					if (json_string.length > 0) {
-						
-						var json = JSON.parse(json_string);
-						var json_services = json['FoundServices'];
-						
-						if (json_services.length > 0) {
-							
-							var response_object = new Object();
-							response_object['route'] = route;
-							
-							var stops_container = [];
-							
-							// Track the number of API requests, so that we know when we're finished.
-							var counter = 0;
-							var total_requests = json_services.length;
-							
-							
-							// Loop through each service, extract the "service variant IDs",
-							// which we then use to retrieve the stops.
-							
-							json_services.forEach(function(service) {
 
-								var goingFrom = service['GoingFrom'];
-								var goingTo = service['GoingTo'];
-								var altGoingFrom = service['AltGoingFrom'];
-								var altGoingTo = service['AltGoingTo'];
-								
-								var service_variant_ids_string = '';
-								
-								service['ServiceVariantIds'].forEach(function(variant_id) {
-									service_variant_ids_string += variant_id + ',';
-								});
-								
-								var service_options = {
-									uri: 'http://www.rtpi.ie/ConnectService.svc/GetServiceDataSerialized',
-									method: 'POST',
-									json: {
-										'publicServiceCode' : timetable_id,
-										'operatorID' : service['OperatorId'],
-										'depotID' : service['DepotId'],
-										'routeLineNodes' : 'none',
-										'serviceVariantIDs' : service_variant_ids_string.substring(0, service_variant_ids_string.length - 1)
-									}
-								};
-								
-								request(service_options, function(service_error, service_response, service_body) {
-									
-									counter++;
-									
-									if ((!service_error) && (service_response.statusCode == 200)) {
-										
-										var stops = [];
-										
-										// Parse the response into a valid JSON string.
-										json_string = JSON.stringify(service_body);
-										json_string = json_string.substring(26, json_string.length - 2).replace(/\\/g, '');
-										
-										if (json_string.length > 0) {
-											
-											json = JSON.parse(json_string);
-											
-											var sub_stops = json['AllStops'];
-											
-											sub_stops.forEach(function(sub_stop) {
-												
-												var stop_ref = sub_stop['StopRef'];
-												
-												// Find the current stop in the cache.
-												var matched_stops = global.formatted_stops.filter(function(element) {
-													return element['stop_ref'] === stop_ref;
-												});
-												
-												// Update the lat / lon and add to the array of stops.
-												if (matched_stops.length > 0) {
-													
-													matched_stops.forEach(function(matched_stop) {
-														
-														matched_stop['latitude'] = sub_stop['Latitude'];
-														matched_stop['longitude'] = sub_stop['Longitude'];
+					var response_object = new Object();
+					response_object['route'] = route;
 
-														matched_stop['from'] = goingFrom;
-														matched_stop['to'] = goingTo;
+					var json = JSON.parse(body);
 
-														matched_stop['irish_from'] = altGoingFrom;
-														matched_stop['irish_to'] = altGoingTo;
+					var error_code = json["errorcode"];
 
-														global.translations[goingFrom] = altGoingFrom;
-														global.translations[goingTo] = altGoingTo;
+					if ((error_code) && (parseInt(error_code) == 0)) {
 
-														
-														stops.push(matched_stop);
-													});
-												}
-												
-											});
-										}
-										
-										if (stops.length > 0) {
-											stops_container.push(stops);
-										}
-									}
-									
-									// Check to see if we're finished downloading the stops.
-									if (counter >= total_requests) {
-										
-										if (stops_container.length > 0) {
-											response_object['stops'] = stops_container;
-										}
-										
-										response_string = JSON.stringify(response_object);
-										res.send(200, response_string);
-									}
-									
-								});
+						var directions = json["results"];
+
+						var formatted_stops = [];
+
+						var to_es_stops = [];
+						var from_es_stops = [];
+
+						directions.forEach(function(direction) {
+
+							var goingFrom = direction['origin'];
+							var goingTo = direction['destination'];
+							var altGoingFrom = direction['originlocalized'];
+							var altGoingTo = direction['destinationlocalized'];
+
+							var stops = direction["stops"];
+
+							global.translations[goingFrom] = altGoingFrom;
+							global.translations[goingTo] = altGoingTo;
+
+
+							var format_stop = function(stop) {
+
+								var formatted_stop = new Object();
+
+								formatted_stop['stop_ref'] = stop['stopid'];
+								formatted_stop['stop_id'] = parseInt(stop['stopid']);
+
+								formatted_stop['long_name'] = stop['fullname'];
+								formatted_stop['irish_long_name'] = stop['fullnamelocalized'];
+								formatted_stop['short_name'] = stop['shortname'];
+								formatted_stop['irish_short_name'] = stop['shortnamelocalized'];
+
+								formatted_stop['latitude'] = parseFloat(stop['latitude']);
+								formatted_stop['longitude'] = parseFloat(stop['longitude']);
+
+								formatted_stop['from'] = goingFrom;
+								formatted_stop['to'] = goingTo;
+
+								formatted_stop['irish_from'] = altGoingFrom;
+								formatted_stop['irish_to'] = altGoingTo;
+
+								return formatted_stop;
+							};
+
+							// Convert JSON to native objects.
+							var mapped_stops = stops.map(function(stop) {
+								return format_stop(stop);
 							});
-							
-							return;
+
+
+							// Combine the various services into inboound/outbound arrays.
+							if (direction['destination'] === "Eyre Square") {
+								to_es_stops.push.apply(to_es_stops, mapped_stops);
+							}
+							else if (direction['origin'] === "Eyre Square") {
+								from_es_stops.push.apply(from_es_stops, mapped_stops);
+							}
+						});
+
+						formatted_stops.push(to_es_stops);
+						formatted_stops.push(from_es_stops);
+
+						if (formatted_stops.length > 0) {
+
+							response_object['stops'] = formatted_stops;
+
+							response_string = JSON.stringify(response_object);
+							code = 200;
+
+							global.formatted_routes_strings[parseInt(timetable_id)] = response_string;
+
+							var cache_expiration_date = new Date();
+							cache_expiration_date.setHours(cache_expiration_date.getHours() + 24);
+							global.formatted_routes_timestamps[parseInt(timetable_id)] = cache_expiration_date;
+
+							console.log("Updated cache for route " + timetable_id + " (expires " + cache_expiration_date + ").");
 						}
-					}		
+					}
 				}
-				
+
+				if (!response_string) {
+					response_string = '{\"error\" : \"An error occurred.\", \"code\" : 500}';
+					code = 500;
+				}
+
 				res.send(code, response_string);
 			});
-			
+
 			return;
 		}
 		else {
@@ -408,6 +386,11 @@ app.get('/routes/:timetable_id', function(req, res) {
 			request(url, function(error, response, body) {
 			});
 		}
+	}
+
+	if (!response_string) {
+		response_string = '{\"error\" : \"An error occurred.\", \"code\" : 500}';
+		code = 500;
 	}
 
 	res.send(code, response_string);
@@ -421,12 +404,12 @@ app.get('/schedules.json', function(req, res) {
 	var schedules = new Object();
 
 	schedules[401] = [ { 'Salthill - Eyre Square' : 'http://www.buseireann.ie/timetables/1425472464-401.pdf' } ];
-	schedules[402] = [ {  'Merlin Park - Eyre Square - Seacrest' : 'http://www.buseireann.ie/timetables/1464192900-402.pdf' } ];
-	schedules[403] = [ {  'Eyre Square - Castlepark' : 'http://www.buseireann.ie/timetables/1464193090-403.pdf' } ];
-	schedules[404] = [ {  'Newcastle - Eyre Square - Oranmore' : 'http://www.buseireann.ie/timetables/1475580187-404.pdf' } ];
+	schedules[402] = [ { 'Merlin Park - Eyre Square - Seacrest' : 'http://www.buseireann.ie/timetables/1464192900-402.pdf' } ];
+	schedules[403] = [ { 'Eyre Square - Castlepark' : 'http://www.buseireann.ie/timetables/1464193090-403.pdf' } ];
+	schedules[404] = [ { 'Newcastle - Eyre Square - Oranmore' : 'http://www.buseireann.ie/timetables/1475580187-404.pdf' } ];
 	schedules[405] = [ { 'Rahoon - Eyre Square - Ballybane' : 'http://www.buseireann.ie/timetables/1475580263-405.pdf' } ];
-	schedules[407] = [ {  'Eyre Square - Bóthar an Chóiste and return' : "http://www.buseireann.ie/timetables/1425472732-407.pdf" } ];
-	schedules[409] = [ {  'Eyre Square - GMIT - Parkmore' : 'http://www.buseireann.ie/timetables/1475580323-409.pdf' } ];
+	schedules[407] = [ { 'Eyre Square - Bóthar an Chóiste and return' : "http://www.buseireann.ie/timetables/1425472732-407.pdf" } ];
+	schedules[409] = [ { 'Eyre Square - GMIT - Parkmore' : 'http://www.buseireann.ie/timetables/1475580323-409.pdf' } ];
 
 	res.send(200, JSON.stringify(schedules));
 
@@ -456,7 +439,8 @@ app.get('/stops.json', function(req, res) {
 		
 		// Respond with cached stops JSON.
 		if (!cache_expired) {
-			res.send(global.stops_json_string);
+			console.log("/stops.json hitting cache.")
+			res.send(200, global.stops_json_string);
 			return;	
 		}
 	}
@@ -465,163 +449,93 @@ app.get('/stops.json', function(req, res) {
 	// Call the RTPI API to get all stops available in the Galway region.
 	
 	var options = {
-		uri: 'http://www.rtpi.ie/ConnectService.svc/GetClusteredStops',
-		method: 'POST',
-		json: {
-			'topLeft': { 'lon' : -9.1775166093531, 'lat' : 53.346860746602, 'CLASS_NAME' : 'OpenLayers.LonLat' },
-			'bottomRight': { 'lon' : -8.9258173906463, 'lat' : 53.194102800494, 'CLASS_NAME' : 'OpenLayers.LonLat' },
-			'zoomLevel' : 10
-		}
+		uri: 'https://data.dublinked.ie/cgi-bin/rtpi/busstopinformation?operator=be'
 	};
-	
+
 	request(options, function(error, response, body) {
-		
+
 		var response_string = null;
 		var code = 500;
 		
 		if ((!error) && (response.statusCode == 200)) {
 
-			// Parse the response into a valid JSON string.
-			var convert_to_json = function(response_body) {
-				var json_string = JSON.stringify(response_body);
-				json_string = json_string.substring(22, json_string.length - 2).replace(/\\/g, '');
-				return json_string;
-			};
+			var json = JSON.parse(body);
 
-			// Parse the response into a JSON string, then 
-			// get the Stops array from the JSON object.
-			var body_to_stops = function(response_body) {
+			var error_code = json["errorcode"];
 
-				var json_string = convert_to_json(response_body);
-			
-				if (json_string.length > 0) {
+			if ((error_code) && (parseInt(error_code) == 0)) {
 
-					var json = JSON.parse(json_string);
-					return json['Stops'];
-				}
+				var results = json["results"];
 
-				return null;
-			};
-
-
-
-			var json_stops = body_to_stops(body);
-
-			if ((json_stops != null) && (json_stops.length > 0)) {
-
-				global.formatted_stops = [];
-				
 				var formatted_stops = [];
-				var formatted_cluster_stops = [];
-
-				var cluster_count = 0;
-				var cluster_response_count = 0;
-
+				global.formatted_stops = [];
 
 				// Create an object from the Stop JSON data.
 				var parse_stop = function(json_stop_object) {
 
 					formatted_stop = new Object();
-					formatted_stop['short_name'] = json_stop_object['StopName'];
-					formatted_stop['long_name'] = json_stop_object['StopNameLong'];
-					formatted_stop['stop_id'] = json_stop_object['StopId'];
-					formatted_stop['stop_ref'] = json_stop_object['StopRef'];
-					formatted_stop['irish_short_name'] = json_stop_object['AltStopName'];
-					formatted_stop['irish_long_name'] = json_stop_object['AltStopNameLong'];
-					formatted_stop['latitude'] = json_stop_object['Latitude'];
-					formatted_stop['longitude'] = json_stop_object['Longitude'];
+					formatted_stop['short_name'] = json_stop_object['shortname'];
+					formatted_stop['long_name'] = json_stop_object['fullname'];
+					formatted_stop['stop_id'] = parseInt(json_stop_object['stopid']);
+					formatted_stop['stop_ref'] = json_stop_object['stopid'];
+					formatted_stop['irish_short_name'] = json_stop_object['shortnamelocalized'];
+					formatted_stop['irish_long_name'] = json_stop_object['fullnamelocalized'];
+					formatted_stop['latitude'] = parseFloat(json_stop_object['latitude']);
+					formatted_stop['longitude'] = parseFloat(json_stop_object['longitude']);
+
+					var routes = json_stop_object['operators'][0]['routes'];
+
+					routes.forEach(function(route) {
+
+						if (route === "401" || route === "402" || route === "403" || route === "404" || route === "405" || route === "407" || route === "409") {
+							formatted_stop['galway'] = true;
+						}
+						else {
+							formatted_stop['galway'] = false;
+						}
+
+					});
 
 					return formatted_stop;
 				};
-				
 
-				json_stops.forEach(function(json_stop) {
+				results.forEach(function(json_stop) {
 
-					// If we have a cluster of stops, we need to make an additional
-					// API request to get the stops in the cluster.
+					var formatted_stop = parse_stop(json_stop);
 
-					if (1 == json_stop["ClusterCount"]) {
-						var formatted_stop = parse_stop(json_stop);
+					if (formatted_stop['galway'] == true) {
 						formatted_stops.push(formatted_stop);
 					}
-					else {
-
-						// Send the cluster API request.
-
-						cluster_count++;
-
-						var cluster_options = {
-							uri: 'http://www.rtpi.ie/ConnectService.svc/GetStopsForCluster',
-							method: 'POST',
-							json: {
-								'clusterID' : json_stop['ClusterId']
-							}
-						};
-
-						request(cluster_options, function(cluster_error, cluster_response, cluster_body) {
-							
-							var cluster_response_string = null;
-							var cluster_code = 500;
-
-							cluster_response_count++;
-							
-							if ((!cluster_error) && (cluster_response.statusCode == 200)) {
-
-								var cluster_json_stops = body_to_stops(cluster_body);
-
-								if (cluster_json_stops.length > 0) {
-
-									cluster_json_stops.forEach(function(json_stop) {
-										var formatted_stop = parse_stop(json_stop);
-										formatted_cluster_stops.push(formatted_stop);
-									});
-								}
-							}
-
-							if (cluster_count == cluster_response_count) {
-
-								global.formatted_stops.push.apply(global.formatted_stops, formatted_cluster_stops);
-
-								response_string = JSON.stringify(global.formatted_stops);
-
-								global.stops_json_string = response_string;
-
-								if (!response_string) {
-									response_string = '{\"error\" : \"An error occurred.\", \"code\" : 500}';
-									code = 500;
-								}
-
-								res.send(code, response_string);
-							}
-						});
-					}
-				});
-				
-				response_string = JSON.stringify(formatted_stops);
-				
-				if (response_string.length > 0) {
-
-					global.stops_json_string = response_string;
-
-					global.formatted_stops.push.apply(global.formatted_stops, formatted_stops);
 					
-					// Refresh the cache every 24 hours
-					var expiry_date = new Date();
-					expiry_date.setDate(expiry_date.getDate() + 1);
-					global.stops_timestamp = expiry_date;
-					code = 200;
-				}
+				});
+
+				global.formatted_stops.push.apply(global.formatted_stops, formatted_stops);
+
+				response_string = JSON.stringify(global.formatted_stops);
+
+				global.stops_json_string = response_string;
+
+				var cache_expiration_date = new Date();
+				cache_expiration_date.setHours(cache_expiration_date.getHours() + 24);
+				global.stops_timestamp = cache_expiration_date;
+
+				console.log("Updated cache for stops (expires " + cache_expiration_date + ").");
+			}
+
+			if (!response_string) {
+				response_string = '{\"error\" : \"An error occurred.\", \"code\" : 500}';
+				code = 500;
+			}
+			else {
+				code = 200;
 			}
 		}
-		
+
 		if (!response_string) {
 			response_string = '{\"error\" : \"An error occurred.\", \"code\" : 500}';
 		}
-		
-		// Only respond here, if there are no clusters on the map.
-		if (0 == cluster_count) {
-			res.send(code, response_string);
-		}
+
+		res.send(code, response_string);
 	});
 })
 
@@ -652,7 +566,7 @@ app.get('/stops/:stop_ref', function(req, res) {
 					var stop = new Object();
 					stop['stop'] = matched_stops[0];
 
-					parseTimesForStopRef(stop['stop']['stop_ref']).then(times => {
+					parseRealTimesForStopRef(stop['stop']['stop_ref']).then(times => {
 						// Store the times for API response.
 						stop['times'] = times;
 						res.send(200, JSON.stringify(stop));
