@@ -226,12 +226,11 @@ app.get('/routes.json', function(req, res) {
 	
 	routes[401] = { 'timetable_id' : 401, 'long_name' : 'Salthill - Eyre Square', 'short_name' : 'Salthill' };
 	routes[402] = { 'timetable_id' : 402, 'long_name' : 'Merlin Park - Eyre Square - Seacrest', 'short_name' : 'Merlin Park - Seacrest' };
-	routes[403] = { 'timetable_id' : 403, 'long_name' : 'Castlepark - Eyre Square', 'short_name' : 'Castlepark' };
-	routes[404] = { 'timetable_id' : 404, 'long_name' : 'Newcastle - Eyre Square', 'short_name' : 'Newcastle' };
-	routes[405] = { 'timetable_id' : 405, 'long_name' : 'Ballybane - Eyre Square - Rahoon', 'short_name' : 'Ballybane - Rahoon' };
-	routes[407] = { 'timetable_id' : 407, 'long_name' : 'Bóthar an Chóiste - Eyre Square', 'short_name' : 'Bóthar an Chóiste' };
-	routes[409] = { 'timetable_id' : 409, 'long_name' : 'Parkmore Industrial Estate - Eyre Square', 'short_name' : 'Parkmore' };
-	routes[410] = { 'timetable_id' : 410, 'long_name' : 'Oranmore - Eyre Square', 'short_name' : 'Oranmore' };
+	routes[403] = { 'timetable_id' : 403, 'long_name' : 'Eyre Square - Castlepark', 'short_name' : 'Castlepark' };
+	routes[404] = { 'timetable_id' : 404, 'long_name' : 'Newcastle - Eyre Square - Oranmore', 'short_name' : 'Newcastle - Oranmore' };
+	routes[405] = { 'timetable_id' : 405, 'long_name' : 'Rahoon - Eyre Square - Ballybane', 'short_name' : 'Rahoon - Ballybane' };
+	routes[407] = { 'timetable_id' : 407, 'long_name' : 'Eyre Square - Bóthar an Chóiste', 'short_name' : 'Bóthar an Chóiste' };
+	routes[409] = { 'timetable_id' : 409, 'long_name' : 'Eyre Square - GMIT - Parkmore', 'short_name' : 'Parkmore / GMIT' };
 	
 	res.send(200, JSON.stringify(routes));
 	
@@ -421,14 +420,13 @@ app.get('/schedules.json', function(req, res) {
 
 	var schedules = new Object();
 
-	schedules[401] = [ { 'Salthill - Eyre Square' : 'http://www.buseireann.ie/pdf/1360756547-401.pdf' } ];
-	schedules[402] = [ {  'Merlin Park - Eyre Square - Seacrest' : 'http://www.buseireann.ie/pdf/1360756548-402_Merlin-Park-Seacrest.pdf' }, { 'Seacrest - Eyre Square - Merlin Park' : 'http://www.buseireann.ie/pdf/1360756623-402_Seacrest-Merlin-Park.pdf' } ];
-	schedules[403] = [ {  'Eyre Square - Castlepark' : 'http://www.buseireann.ie/pdf/1360847232-403_Eyre-Square-Castlepark.pdf' }, { 'Castlepark - Eyre Square' : 'http://www.buseireann.ie/pdf/1360847233-403_Castlepark-EyreSquare.pdf' } ];
-	schedules[404] = [ {  'Eyre Square - Newcastle' : 'http://www.buseireann.ie/pdf/1360756626-404_Eyre-Square-Newcastle.pdf' }, { 'Newcastle - Eyre Square' : 'http://www.buseireann.ie/pdf/1360756699-404_Newcastle-Eyre-Square.pdf' } ];
-	schedules[405] = [ {  'Ballybane - Eyre Square - Rahoon' : 'http://www.buseireann.ie/pdf/1360756700-405_Ballybane-Rahoon.pdf' }, { 'Rahoon - Eyre Square - Ballybane' : 'http://www.buseireann.ie/pdf/1360756701-405_Rahoon-Ballybane.pdf' } ];
-	schedules[407] = [ {  'Eyre Square - Bóthar an Chóiste and return' : "http://www.buseireann.ie/pdf/1360756547-401.pdf" } ];
-	schedules[409] = [ {  'Parkmore Ind. Estate - Eyre Square' : 'http://www.buseireann.ie/pdf/1360756795-409_Parkmore-Ind-Estate-Eyre-Square.pdf' } ];
-	schedules[410] = [ {  'Eyre Square - Oranmore' : 'http://www.buseireann.ie/pdf/1360756796-410_Eyre-Square-Oranmore.pdf' }, { 'Oranmore - Eyre Square' : 'http://www.buseireann.ie/pdf/1360756797-410_Oranmore-Eyre-Square.pdf' } ];
+	schedules[401] = [ { 'Salthill - Eyre Square' : 'http://www.buseireann.ie/timetables/1425472464-401.pdf' } ];
+	schedules[402] = [ {  'Merlin Park - Eyre Square - Seacrest' : 'http://www.buseireann.ie/timetables/1464192900-402.pdf' } ];
+	schedules[403] = [ {  'Eyre Square - Castlepark' : 'http://www.buseireann.ie/timetables/1464193090-403.pdf' } ];
+	schedules[404] = [ {  'Newcastle - Eyre Square - Oranmore' : 'http://www.buseireann.ie/timetables/1475580187-404.pdf' } ];
+	schedules[405] = [ { 'Rahoon - Eyre Square - Ballybane' : 'http://www.buseireann.ie/timetables/1475580263-405.pdf' } ];
+	schedules[407] = [ {  'Eyre Square - Bóthar an Chóiste and return' : "http://www.buseireann.ie/timetables/1425472732-407.pdf" } ];
+	schedules[409] = [ {  'Eyre Square - GMIT - Parkmore' : 'http://www.buseireann.ie/timetables/1475580323-409.pdf' } ];
 
 	res.send(200, JSON.stringify(schedules));
 
