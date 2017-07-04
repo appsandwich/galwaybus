@@ -28,111 +28,46 @@ var parseTimesForStopRef = function(stop_ref) {
 	return new Promise((resolve, reject) => {
 
 		// Call the RTPI API to retrieve the latest departure times at that stop.
-		// We actually scrape the mobile/text-only website here, as there doesn't
-		// seem to be a visible API that allows us to do similar.
 		
-		var url = 'http://www.rtpi.ie/Text/WebDisplay.aspx?stopRef=' + stop_ref;
+		var url = 'https://data.dublinked.ie/cgi-bin/rtpi/realtimebusinformation?stopid=' + stop_ref;
 		
 		request(url, function(error, response, body) {
 			
 			if (!error) {
-				
-				// Load the response body/HTML into Cheerio for parsing.
-				var $ = cheerio.load(body);
-				
-				var times = [];
-				
-				
-				// Find the times <table> and loop through each <tr>.
-				
-				$("table.webDisplayTable tr").each(function(tr_index, tr) { 
-					
-					var time = new Object();
-					
-					var td_array = $(this).find("td"); 
 
-					if (td_array.length > 0) {
-						
-						// Each <tr> holds the following data: 
-						// <td>timetable_id</td> <td>display_name</td> <td>depart_timestamp</td> <td>&nbsp;</td>
-						// <td>timetable_id</td><td>&nbsp;</td><td>display_name</td><td>&nbsp;</td><td>depart_timestamp</td><td">low_floor</td>
-						
-						// Loop through each <td> and extract the data.
+				var json = JSON.parse(body);
 
-						var index = 0;
-						
-						td_array.each(function(td_index, td) {
+				var error_code = json['errorcode'];
+
+				if ((error_code) && (error_code == "0")) {
+
+					var times = [];
+
+					var results = json['results'];
+
+					if (results) {
+
+						times = results.map(function(result) {
 							
-							var value = td.children[0].data;
+							var time = new Object();
+							time['timetable_id'] = result['route'];
+							time['display_name'] = result['destination'];
+							time['irish_display_name'] = result['destinationlocalized'];
+							// time['depart_timestamp'] = result['scheduleddeparturedatetime'];
+							time['low_floor'] = (result['lowfloorstatus'].indexOf('yes') != -1);
 
-							switch (index) {
-								case 0: {
-									time['timetable_id'] = value;
-									break;
-								}
-								case 2: {
+							var date = new Date(result['scheduleddeparturedatetime']);
+							time['depart_timestamp'] = date;
 
-									time['display_name'] = value;
-
-									var translation = global.translations[value];
-
-									if ((translation != null) && (translation.length > 0)) {
-										time['irish_display_name'] = translation;
-									}
-
-									break;
-								}
-								case 4: {
-
-									var nowDateTime = new Date();
-									var now = nowDateTime.getTime();
-									
-									
-									// The timestamp can be in three different formats: Due, X Mins, HH:mm.
-									
-									if (value == 'Due') {
-										time['depart_timestamp'] = now;
-									}
-									else {
-										
-										if (value.indexOf('Min') != -1) {
-											var remaining_mins = parseInt(value.replace('Mins', '').replace('Min', ''));
-											time['depart_timestamp'] = new Date(nowDateTime.getTime() + remaining_mins*60000);
-										}
-										else {
-											
-											var t = value.split(':');  
-											
-											nowDateTime.setHours(+t[0]);
-											nowDateTime.setMinutes(t[1]);
-											
-											time['depart_timestamp'] = nowDateTime;
-										}
-										
-										times.push(time);
-									}
-
-									break;
-								}
-								case 5: {
-									time['low_floor'] = (value.indexOf('Yes') != -1);
-									break;
-								}
-								default: {
-									break;
-								}
-							}
-
-							index++;
+							return time;
 						});
-					}								
-					
-					
-				});
-				
-				resolve(times);
+					}
 
-				return;
+					resolve(times);
+					
+					return;
+				}
+
 			}
 
 			reject('{\"error\" : \"An error occurred.\", \"code\" : 500}');
