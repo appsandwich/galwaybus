@@ -478,10 +478,21 @@ app.get('/stops.json', function(req, res) {
 					formatted_stop['long_name'] = json_stop_object['fullname'];
 					formatted_stop['stop_id'] = parseInt(json_stop_object['stopid']);
 					formatted_stop['stop_ref'] = json_stop_object['stopid'];
-					formatted_stop['irish_short_name'] = json_stop_object['shortnamelocalized'];
-					formatted_stop['irish_long_name'] = json_stop_object['fullnamelocalized'];
 					formatted_stop['latitude'] = parseFloat(json_stop_object['latitude']);
 					formatted_stop['longitude'] = parseFloat(json_stop_object['longitude']);
+
+					var irish_short_name = json_stop_object['shortnamelocalized'];
+					var irish_long_name = json_stop_object['fullnamelocalized'];
+
+					if ((irish_short_name) && (irish_short_name.length > 0) && ((!irish_long_name) || (irish_long_name.length == 0))) {
+						irish_long_name = irish_short_name;
+					}
+					else if ((irish_long_name) && (irish_long_name.length > 0) && ((!irish_short_name) || (irish_short_name.length == 0))) {
+						irish_short_name = irish_long_name;
+					}
+
+					formatted_stop['irish_short_name'] = irish_short_name;
+					formatted_stop['irish_long_name'] = irish_long_name;
 
 					var routes = json_stop_object['operators'][0]['routes'];
 
