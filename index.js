@@ -10,6 +10,8 @@ var app = express();
 
 var port = Number(process.env.PORT || 8000);
 
+var endpoint = 'https://data.dublinked.ie/cgi-bin/rtpi';
+
 // parse application/json
 app.use(bodyParser.json());
 
@@ -56,7 +58,7 @@ var parseRealTimesForStopRef = function(stop_ref) {
 
 	return new Promise((resolve, reject) => {
 
-		var url = 'https://data.dublinked.ie/cgi-bin/rtpi/realtimebusinformation?operator=be&stopid=' + stop_ref;
+		var url =  endpoint + '/realtimebusinformation?maxresults=10&operator=be&stopid=' + stop_ref;
 		
 		request(url, function(error, response, body) {
 			
@@ -273,7 +275,7 @@ app.get('/routes/:timetable_id', function(req, res) {
 			
 			
 			var options = {
-				uri: 'https://data.dublinked.ie/cgi-bin/rtpi/routeinformation?operator=be&routeid=' + timetable_id
+				uri: endpoint + '/routeinformation?operator=be&routeid=' + timetable_id
 			};
 			
 			request(options, function(error, response, body) {
@@ -449,7 +451,7 @@ app.get('/stops.json', function(req, res) {
 	// Call the RTPI API to get all stops available in the Galway region.
 	
 	var options = {
-		uri: 'https://data.dublinked.ie/cgi-bin/rtpi/busstopinformation?operator=be'
+		uri: endpoint + '/busstopinformation?operator=be'
 	};
 
 	request(options, function(error, response, body) {
