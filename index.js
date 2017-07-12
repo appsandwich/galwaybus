@@ -1,4 +1,4 @@
-// Copyright (c) 2014 Vinny Coyne (http://www.vinnycoyne.com)
+// Copyright (c) 2014-2017 Vinny Coyne (http://www.vinnycoyne.com)
 
 var express = require('express');
 var request = require('request');
