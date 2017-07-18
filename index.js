@@ -472,6 +472,23 @@ app.get('/stops.json', function(req, res) {
 				var formatted_stops = [];
 				global.formatted_stops = [];
 
+				var eyre_square_coordinates = [-9.0514163, 53.2743426];
+				var eyre_square_point = turf.point(eyre_square_coordinates);
+				var units = "meters";
+
+				var stop_in_galway = function(stop) {
+
+					var lat = parseFloat(stop['latitude']);
+					var lon = parseFloat(stop['longitude']);
+
+					var stop_point = turf.point([lon, lat]);
+
+					var distance_from_eyre_square = turf.distance(eyre_square_point, stop_point, units);
+
+					return (distance_from_eyre_square < 25000.0);
+
+				};
+
 				// Create an object from the Stop JSON data.
 				var parse_stop = function(json_stop_object) {
 
@@ -496,18 +513,7 @@ app.get('/stops.json', function(req, res) {
 					formatted_stop['irish_short_name'] = irish_short_name;
 					formatted_stop['irish_long_name'] = irish_long_name;
 
-					var routes = json_stop_object['operators'][0]['routes'];
-
-					routes.forEach(function(route) {
-
-						if (route === "401" || route === "402" || route === "403" || route === "404" || route === "405" || route === "407" || route === "409") {
-							formatted_stop['galway'] = true;
-						}
-						else {
-							formatted_stop['galway'] = false;
-						}
-
-					});
+					formatted_stop['galway'] = stop_in_galway(json_stop_object);
 
 					return formatted_stop;
 				};
