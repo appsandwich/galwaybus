@@ -272,8 +272,7 @@ app.get('/routes/:timetable_id', function(req, res) {
 			
 			// Get the route/timetable info from the local cache.
 			var route = global.routes[parseInt(timetable_id)];
-			
-			
+
 			var options = {
 				uri: endpoint + '/routeinformation?operator=be&routeid=' + timetable_id
 			};
@@ -297,6 +296,8 @@ app.get('/routes/:timetable_id', function(req, res) {
 
 						var to_es_stops = [];
 						var from_es_stops = [];
+
+						var fallbackDestinationName = "";
 
 						directions.forEach(function(direction) {
 
@@ -347,6 +348,22 @@ app.get('/routes/:timetable_id', function(req, res) {
 							}
 							else if (direction['origin'] === "Eyre Square") {
 								from_es_stops.push.apply(from_es_stops, mapped_stops);
+							}
+							else {
+
+								// Not all routes use Eyre Square as destination name anymore.
+								// This is a fallback to handle that (mainly for 405 right now).
+
+								if (fallbackDestinationName.length == 0) {
+									fallbackDestinationName = direction['destination'];
+								}
+
+								if (direction['destination'] === fallbackDestinationName) {
+									to_es_stops.push.apply(to_es_stops, mapped_stops);
+								}
+								else if (direction['origin'] === fallbackDestinationName) {
+									from_es_stops.push.apply(from_es_stops, mapped_stops);
+								}
 							}
 						});
 
