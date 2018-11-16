@@ -157,6 +157,7 @@ app.get('/stops/nearby.json', function(req, res) {
 
 	var latitude = parseFloat(req.query.latitude);
 	var longitude = parseFloat(req.query.longitude);
+	var timetable_id = req.query.route;
 
 	var point = turf.point([longitude, latitude]);
 
@@ -325,6 +326,7 @@ app.get('/routes/:timetable_id', function(req, res) {
 
 								formatted_stop['latitude'] = parseFloat(stop['latitude']);
 								formatted_stop['longitude'] = parseFloat(stop['longitude']);
+								formatted_stop['routes'] = json_stop_object['routes'];
 
 								formatted_stop['from'] = goingFrom;
 								formatted_stop['to'] = goingTo;
@@ -514,6 +516,7 @@ app.get('/stops.json', function(req, res) {
 					formatted_stop['stop_ref'] = json_stop_object['stopid'];
 					formatted_stop['latitude'] = parseFloat(json_stop_object['latitude']);
 					formatted_stop['longitude'] = parseFloat(json_stop_object['longitude']);
+					formatted_stop['routes'] = json_stop_object['routes'];
 
 					var irish_short_name = json_stop_object['shortnamelocalized'];
 					var irish_long_name = json_stop_object['fullnamelocalized'];
