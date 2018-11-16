@@ -186,7 +186,20 @@ app.get('/stops/nearby.json', function(req, res) {
 		return d1 - d2;
 	};
 
-	var sorted_stops = global.formatted_stops.sort(sort_distance).slice(0, 10);
+
+
+	var sorted_stops = global.formatted_stops.sort(sort_distance);
+
+	if (timetable_id != null) {
+
+		sorted_stops = sorted_stops.filter(function(element) {
+			return (element['routes'] != null) && (element['routes'].indexOf != -1);
+		});
+	}
+
+	if (sorted_stops.length > 10) {
+		sorted_stops = sorted_stops.slice(0, 10);
+	}
 
 	var sorted_stop_ref_promises = sorted_stops.map(function(stop) {
 		return parseRealTimesForStopRef(stop['stop_ref']);
