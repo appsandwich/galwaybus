@@ -326,7 +326,7 @@ app.get('/routes/:timetable_id', function(req, res) {
 
 								formatted_stop['latitude'] = parseFloat(stop['latitude']);
 								formatted_stop['longitude'] = parseFloat(stop['longitude']);
-								formatted_stop['routes'] = json_stop_object['routes'];
+								formatted_stop['routes'] = stop['routes'];
 
 								formatted_stop['from'] = goingFrom;
 								formatted_stop['to'] = goingTo;
