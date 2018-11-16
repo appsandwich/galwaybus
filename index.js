@@ -326,7 +326,19 @@ app.get('/routes/:timetable_id', function(req, res) {
 
 								formatted_stop['latitude'] = parseFloat(stop['latitude']);
 								formatted_stop['longitude'] = parseFloat(stop['longitude']);
-								formatted_stop['routes'] = stop['routes'];
+								
+								var operators = stop['operators'];
+
+								if ((operators != null) && (operators.length > 0)) {
+
+									var be_operators = operators.filter(function(element) {
+										return element['name'] === 'BE';
+									});
+
+									if (be_operators.length > 0) {
+										formatted_stop['routes'] = be_operators[0]['routes'];
+									}
+								}
 
 								formatted_stop['from'] = goingFrom;
 								formatted_stop['to'] = goingTo;
@@ -516,7 +528,20 @@ app.get('/stops.json', function(req, res) {
 					formatted_stop['stop_ref'] = json_stop_object['stopid'];
 					formatted_stop['latitude'] = parseFloat(json_stop_object['latitude']);
 					formatted_stop['longitude'] = parseFloat(json_stop_object['longitude']);
-					formatted_stop['routes'] = json_stop_object['routes'];
+
+					var operators = json_stop_object['operators'];
+
+					if ((operators != null) && (operators.length > 0)) {
+
+						var be_operators = operators.filter(function(element) {
+							return element['name'] === 'BE';
+						});
+
+						if (be_operators.length > 0) {
+							formatted_stop['routes'] = be_operators[0]['routes'];
+						}
+					}
+
 
 					var irish_short_name = json_stop_object['shortnamelocalized'];
 					var irish_long_name = json_stop_object['fullnamelocalized'];
