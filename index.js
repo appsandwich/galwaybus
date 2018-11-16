@@ -193,7 +193,7 @@ app.get('/stops/nearby.json', function(req, res) {
 	if (timetable_id != null) {
 
 		sorted_stops = sorted_stops.filter(function(element) {
-			return (element['routes'] != null) && (element['routes'].indexOf != -1);
+			return (element['routes'] != null) && (element['routes'].indexOf(timetable_id) != -1);
 		});
 	}
 
