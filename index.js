@@ -212,10 +212,10 @@ app.get('/stops/nearby.json', function(req, res) {
 			return stop;
 		});
 
-	  res.send(200, JSON.stringify(sorted_stops_with_times));
+	  res.status(200).send(JSON.stringify(sorted_stops_with_times));
 	}).catch(error => {
 		// Fall back to returning just the stops.
-		res.send(200, JSON.stringify(sorted_stops));
+		res.status(200).send(JSON.stringify(sorted_stops));
 	});
 });
 
@@ -233,7 +233,7 @@ app.get('/routes.json', function(req, res) {
 	routes[407] = { 'timetable_id' : 407, 'long_name' : 'Eyre Square - Bóthar an Chóiste', 'short_name' : 'Bóthar an Chóiste' };
 	routes[409] = { 'timetable_id' : 409, 'long_name' : 'Eyre Square - GMIT - Parkmore', 'short_name' : 'Parkmore / GMIT' };
 	
-	res.send(200, JSON.stringify(routes));
+	res.status(200).send(JSON.stringify(routes));
 	
 	global.routes = routes;
 	
@@ -275,7 +275,7 @@ app.get('/routes/:timetable_id', function(req, res) {
 				// Respond with cached route JSON.
 				if (!cache_expired) {
 					console.log("/routes/" + timetable_id + ".json hitting cache.")
-					res.send(200, cached_route);
+					res.status(200).send(cached_route);
 					return;	
 				}
 			}
@@ -419,7 +419,7 @@ app.get('/routes/:timetable_id', function(req, res) {
 					code = 500;
 				}
 
-				res.send(code, response_string);
+				res.status(code).send(response_string);
 			});
 
 			return;
@@ -438,7 +438,7 @@ app.get('/routes/:timetable_id', function(req, res) {
 		code = 500;
 	}
 
-	res.send(code, response_string);
+	res.status(code).send(response_string);
 });
 
 
@@ -455,7 +455,7 @@ app.get('/schedules.json', function(req, res) {
 	schedules[407] = [ { 'Eyre Square - Bóthar an Chóiste and return' : "http://buseireann.ie/timetables/407-1536330823.pdf" } ];
 	schedules[409] = [ { 'Eyre Square - GMIT - Parkmore' : 'http://buseireann.ie/timetables/409-1536332909.pdf' } ];
 
-	res.send(200, JSON.stringify(schedules));
+	res.status(200).send(JSON.stringify(schedules));
 
 });
 
@@ -484,7 +484,7 @@ app.get('/stops.json', function(req, res) {
 		// Respond with cached stops JSON.
 		if (!cache_expired) {
 			console.log("/stops.json hitting cache.")
-			res.send(200, global.stops_json_string);
+			res.status(200).send(global.stops_json_string);
 			return;	
 		}
 	}
@@ -610,7 +610,7 @@ app.get('/stops.json', function(req, res) {
 			response_string = '{\"error\" : \"An error occurred.\", \"code\" : 500}';
 		}
 
-		res.send(code, response_string);
+		res.status(code).send(response_string);
 	});
 })
 
@@ -644,9 +644,9 @@ app.get('/stops/:stop_ref', function(req, res) {
 					parseRealTimesForStopRef(stop['stop']['stop_ref']).then(times => {
 						// Store the times for API response.
 						stop['times'] = times;
-						res.send(200, JSON.stringify(stop));
+						res.status(200).send(JSON.stringify(stop));
 					}).catch(error => {
-						res.send(500, error);
+						res.status(500).send(error);
 					});
 					
 					return;
@@ -666,15 +666,17 @@ app.get('/stops/:stop_ref', function(req, res) {
 		response_string = '{\"error\" : \"An error occurred.\", \"code\" : 500}';
 	}
 	
-	res.send(code, response_string);
+	res.status(code).send(response_string);
 	
 });
+
 
 app.use('/', express.static(__dirname + '/public'));
 
 // 404
 app.get('*', function(req, res){
-  res.send(404, '{\"error\" : \"An error occurred.\", \"code\" : 404}');
+	console.log("404: " + req.url);
+	res.status(404).send('{\"error\" : \"An error occurred.\", \"code\" : 404}');
 });
 
 
