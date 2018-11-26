@@ -8,7 +8,7 @@ var turf = require('@turf/turf');
 var moment = require('moment-timezone');
 var app = express();
 
-var port = Number(process.env.PORT || 8000);
+var port = Number(process.env.PORT || 8001);
 
 var endpoint = 'https://data.dublinked.ie/cgi-bin/rtpi';
 
