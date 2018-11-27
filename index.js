@@ -897,40 +897,31 @@ app.get('/bus.json', function(req, res) {
 
 
 // GET /bus/:timetable_id.json
-// Returns any bus locations that have been added using PUT /bus/timetable_id
+// Returns bus locations filtered by route.
 
 app.get('/bus/:timetable_id', function(req, res) {
 
 	var timetable_id = req.params.timetable_id.replace('.json', '');
 
 	if (timetable_id == null) {
-		timetable_id = '';
-	}
-
-	var locations = global.bus_locations[timetable_id];
-
-	if (locations == null) {
 		locations = [];
-	}
-	else {
-
-		var now = new Date();
-
-		locations = locations.filter(function(location) {
-				
-			// Filter out expired locations
-			var expiration_timestamp = location['expiration_timestamp'];
-
-			return ((expiration_timestamp != null) && (now < expiration_timestamp));
-		});
-
-		// Remove device_ids
-		locations = locations.map(function(location) {
-			return { 'latitude' : location['latitude'], 'longitude' : location['longitude'], 'timetable_id' : timetable_id, 'expiration_timestamp' : location['expiration_timestamp'] };
-		});
+		res.status(200).send(JSON.stringify({ 'bus' : locations }));
+		return;
 	}
 
-	res.status(200).send(JSON.stringify({ 'bus' : locations }));
+	refreshBusLocations().then(locations => { 
+
+		var filtered_locations = locations[timetable_id];
+
+		if (filtered_locations == null) {
+			filtered_locations = [];
+		}
+
+		res.status(200).send(JSON.stringify({ 'bus' : filtered_locations }));
+
+	}).catch(error => { 
+		res.status(500).send(error);
+	});
 });
 
 
