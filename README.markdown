@@ -28,9 +28,11 @@ The rtpi.ie website has access to real-time data for the Galway Bus Éireann tra
 
  Returns a list of departure times for a given bus stop. Use the `stop_ref` retrieved from the `stops.json` API.
 
-* **`GET /stops/nearby.json?latitude=<latitude>&longitude=<longitude>`**
+* **`GET /stops/nearby.json?latitude=<latitude>&longitude=<longitude>&route=<timetable_id>`**
 
 	Lists ten nearest stops to the coordinates provided in the `latitude` and `longitude` URL parameters. Includes departure times.
+
+	Optionally, use the `timetable_id` retrieved from the `routes.json` API to only return stops which service the provided route.
  
  
 ### Schedules
@@ -38,3 +40,14 @@ The rtpi.ie website has access to real-time data for the Galway Bus Éireann tra
 * **`GET /schedules.json`**
 
  Lists all the available bus routes in the Galway transit system, including links to their PDF timetables on the Bus Éireann website. This list is hard-coded and would need to be updated manually, should the routes ever change.
+
+
+ ### Buses
+
+* **`GET /bus.json`**
+
+ Lists all buses currently assigned to a Galway transit route.
+
+* **`GET /bus/<timetable_id>.json`**
+
+ Returns a subset of buses that are assigned to a specific route. Use the `timetable_id` retrieved from the `routes.json` API. In the reponse, the `bus` key will contain an array of assigned bus objects.
