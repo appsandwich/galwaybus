@@ -105,6 +105,7 @@ var loadVehicles = function() {
 							vehicle['longitude'] = vehicle_tdi['longitude'] / 3600000.0;
 							vehicle['modified_timestamp'] = new Date(vehicle_tdi['last_modification_timestamp']);
 							vehicle['trip_duid'] = vehicle_tdi['trip_duid']['duid'];
+							vehicle['vehicle_id'] = vehicle_tdi['vehicle_number'];
 
 							vehicles.push(vehicle);
 						}
