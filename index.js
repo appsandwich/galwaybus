@@ -12,6 +12,17 @@ var port = Number(process.env.PORT || 8001);
 
 var endpoint = 'https://data.dublinked.ie/cgi-bin/rtpi';
 
+var factor = 3600000.0;
+
+var lat_north = parseFloat(53.346860746602 * factor).toFixed(0);
+var lat_south = parseFloat(53.194102800494 * factor).toFixed(0);
+var lon_east = parseFloat(-8.9258173906463 * factor).toFixed(0);
+var lon_west = parseFloat(-9.1775166093531 * factor).toFixed(0);
+
+
+var be_endpoint = 'http://buseireann.ie/inc/proto';
+var be_region = 'latitude_north=' + lat_north + '&latitude_south=' + lat_south + '&longitude_east=' + lon_east + '&longitude_west=' + lon_west;
+
 // parse application/json
 app.use(bodyParser.json());
 
@@ -49,8 +60,209 @@ global.init_cache = function() {
 	request('http://localhost:' + port + '/stops.json', function(error, response, body) {
 	});
 
+	refreshBusLocations();
+
 	console.log("Cache initialised.");
 }
+
+// BUS LOCATIONS
+
+var loadVehicles = function() {
+
+	return new Promise((resolve, reject) => {
+
+		console.log('Loading vehicles...');
+
+		request(be_endpoint + '/vehicleTdi.php?' + be_region, function(error, response, body) {
+
+			if ((!error) && (response.statusCode == 200)) {
+
+				var json = JSON.parse(body);
+
+				var vehicles_tdi = json['vehicleTdi'];
+
+				var vehicles = new Array();
+
+				for (var key in vehicles_tdi) {
+
+					if (vehicles_tdi.hasOwnProperty(key)) {
+
+						var vehicle_tdi = vehicles_tdi[key];
+
+						var trip_duid = vehicle_tdi['trip_duid'];
+
+						if (trip_duid != null) {
+
+							if ((vehicle_tdi['is_deleted'] != null) && (vehicle_tdi['is_deleted'] == true)) {
+								continue;
+							}
+
+
+							var vehicle = new Object();
+
+							vehicle['latitude'] = vehicle_tdi['latitude'] / 3600000.0;
+							vehicle['longitude'] = vehicle_tdi['longitude'] / 3600000.0;
+							vehicle['modified_timestamp'] = new Date(vehicle_tdi['last_modification_timestamp']);
+							vehicle['trip_duid'] = vehicle_tdi['trip_duid']['duid'];
+
+							vehicles.push(vehicle);
+						}
+					}
+				}
+
+				if (vehicles.length > 0) {
+					resolve(vehicles);
+					return;
+				}
+			}
+			
+			reject('{\"error\" : \"An error occurred.\", \"code\" : 500}');
+		});
+
+	});
+};
+
+
+var assignRouteToVehicle = function(vehicle, routes) {
+
+	return new Promise((resolve, reject) => {
+
+		var trip_duid = vehicle['trip_duid'];
+
+		request(be_endpoint + '/stopPassageTdi.php?trip=' + trip_duid, function(error, response, body) {
+
+			if ((!error) && (response.statusCode == 200)) {
+
+				var json = JSON.parse(body);
+
+				var passages_tdi = json['stopPassageTdi'];
+
+				for (var key in passages_tdi) {
+
+					if (passages_tdi.hasOwnProperty(key)) {
+
+						var passage_tdi = passages_tdi[key];
+
+						if (passage_tdi['route_duid'] != null) {
+
+							var route_duid = passage_tdi['route_duid']['duid'];
+
+							if ((route_duid != null) && (routes[route_duid] != null)) {
+								
+								vehicle['timetable_id'] = routes[route_duid]['short_name'];
+
+								resolve(vehicle);
+
+								return;
+							}
+						}
+					}
+				}
+
+				resolve(vehicle);
+
+				return;
+			}
+
+			reject('{\"error\" : \"An error occurred.\", \"code\" : 500}');
+
+		});
+
+	});
+};
+
+
+var refreshBusLocations = function() {
+
+	return new Promise((resolve, reject) => {
+
+		console.log('Attempting to refresh bus locations...');
+
+		request(be_endpoint + '/routes.php?' + be_region, function(error, response, body) {
+
+			if ((!error) && (response.statusCode == 200)) {
+
+				console.log('Routes loaded.');
+
+				eval(body);
+
+				var routes = [ '401', '402', '404', '405', '407', '409' ];
+
+				var routes_tdi = obj_routes['routeTdi'];
+
+				var filtered_routes_tdi = new Object();
+
+				for (var key in routes_tdi) {
+
+					if (routes_tdi.hasOwnProperty(key)) {
+
+						var route_tdi = routes_tdi[key];
+
+						if ((route_tdi['short_name'] != null) && (routes.indexOf(route_tdi['short_name']) != -1)) {
+							filtered_routes_tdi[route_tdi['short_name']] = route_tdi;
+							filtered_routes_tdi[route_tdi['duid']] = route_tdi;
+						}
+					}
+				}
+
+
+				
+				// Load all vehicles in the region.
+
+				loadVehicles().then(vehicles => { 
+
+					console.log('Found ' + vehicles.length + ' vehicles.');
+
+					var response_bus_locations = {};
+
+					var counter = 1;
+
+					console.log('Assigning routes to vehicles...');
+				
+					for (var i = 0; i < vehicles.length; i++) {
+
+						var vehicle = vehicles[i];
+
+						assignRouteToVehicle(vehicle, filtered_routes_tdi).then(updated_vehicle => { 
+
+							counter = counter + 1;
+
+							if (updated_vehicle['timetable_id'] != null) {
+
+								var vehicles_for_route = response_bus_locations[updated_vehicle['timetable_id']] ? response_bus_locations[updated_vehicle['timetable_id']] : new Array();
+
+								vehicles_for_route.push(updated_vehicle);
+
+								response_bus_locations[updated_vehicle['timetable_id']] = vehicles_for_route;
+							}
+
+							if (counter == vehicles.length) {
+								console.log(counter + ' bus locations updated.');
+								resolve(response_bus_locations);
+							}
+
+							
+						}).catch(error => {
+							// console.log('Unable to assignRouteToVehicle: ' + JSON.stringify(vehicle));
+							reject('{\"error\" : \"An error occurred.\", \"code\" : 500}');
+						});
+					}
+
+					
+
+				}).catch(error => {
+					reject('{\"error\" : \"An error occurred.\", \"code\" : 500}');
+				});
+
+				return;
+				
+			}
+
+			reject('{\"error\" : \"An error occurred.\", \"code\" : 500}');
+		});
+	});
+};
+
 
 // PARSING
 
@@ -668,6 +880,57 @@ app.get('/stops/:stop_ref', function(req, res) {
 	
 	res.status(code).send(response_string);
 	
+});
+
+
+// GET /bus.json
+// Returns all bus locations.
+
+app.get('/bus.json', function(req, res) {
+
+	refreshBusLocations().then(locations => { 
+		res.status(200).send(JSON.stringify({ 'bus' : locations }));
+	}).catch(error => { 
+		res.status(500).send(error);
+	});
+});
+
+
+// GET /bus/:timetable_id.json
+// Returns any bus locations that have been added using PUT /bus/timetable_id
+
+app.get('/bus/:timetable_id', function(req, res) {
+
+	var timetable_id = req.params.timetable_id.replace('.json', '');
+
+	if (timetable_id == null) {
+		timetable_id = '';
+	}
+
+	var locations = global.bus_locations[timetable_id];
+
+	if (locations == null) {
+		locations = [];
+	}
+	else {
+
+		var now = new Date();
+
+		locations = locations.filter(function(location) {
+				
+			// Filter out expired locations
+			var expiration_timestamp = location['expiration_timestamp'];
+
+			return ((expiration_timestamp != null) && (now < expiration_timestamp));
+		});
+
+		// Remove device_ids
+		locations = locations.map(function(location) {
+			return { 'latitude' : location['latitude'], 'longitude' : location['longitude'], 'timetable_id' : timetable_id, 'expiration_timestamp' : location['expiration_timestamp'] };
+		});
+	}
+
+	res.status(200).send(JSON.stringify({ 'bus' : locations }));
 });
 
 
