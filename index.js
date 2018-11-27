@@ -36,6 +36,8 @@ global.init_cache = function() {
 
 	global.translations = [];
 
+	global.formatted_buses = {};
+
 	global.bus_locations = {}
 	
 	request('http://localhost:' + port + '/routes.json', function(error, response, body) {
@@ -67,6 +69,37 @@ global.init_cache = function() {
 }
 
 // BUS LOCATIONS
+
+var cachedVehicleResponse = function() {
+
+	var now = new Date();
+	var response_string = global.formatted_buses['response_string'];
+	var expiration_timestamp = global.formatted_buses['expiration_timestamp'];
+
+	if ((expiration_timestamp != null) && (response_string != null) && (now <= expiration_timestamp)) {
+
+		// If cache is going to expire in few seconds,
+		// do a pre-emptive refresh of the bus locations.
+		var refresh_timestamp = new Date();
+		refresh_timestamp.setSeconds(refresh_timestamp.getSeconds() + 2);
+
+		if (refresh_timestamp >= expiration_timestamp) {
+
+			console.log('Bus location cache will expire soon. Refresh now...');
+
+			refreshBusLocations().then(locations => { 
+				console.log('Bus location cache pre-emptively refreshed.');
+			}).catch(error => { 
+				console.log('Failed to pre-emptively refresh the bus location cache.');
+			});
+		}
+
+		return response_string;
+	}
+
+	return null;
+};
+
 
 var loadVehicles = function() {
 
@@ -240,6 +273,13 @@ var refreshBusLocations = function() {
 
 							if (counter == vehicles.length) {
 								console.log(counter + ' bus locations updated.');
+
+								var expiration_timestamp = new Date();
+								expiration_timestamp.setSeconds(expiration_timestamp.getSeconds() + 30);
+
+								global.formatted_buses['response_string'] = JSON.stringify({ 'bus' : response_bus_locations });
+								global.formatted_buses['expiration_timestamp'] = expiration_timestamp;
+
 								resolve(response_bus_locations);
 							}
 
@@ -890,6 +930,18 @@ app.get('/stops/:stop_ref', function(req, res) {
 
 app.get('/bus.json', function(req, res) {
 
+	var response_string = cachedVehicleResponse();
+
+	if (response_string != null) {
+
+		console.log("/bus.json hitting cache.");
+
+		res.status(200).send(response_string);
+
+		return;
+	}
+
+	
 	refreshBusLocations().then(locations => { 
 		res.status(200).send(JSON.stringify({ 'bus' : locations }));
 	}).catch(error => { 
@@ -910,6 +962,27 @@ app.get('/bus/:timetable_id', function(req, res) {
 		res.status(200).send(JSON.stringify({ 'bus' : locations }));
 		return;
 	}
+
+
+	var response_string = cachedVehicleResponse();
+
+	if (response_string != null) {
+
+		console.log("/bus/" + timetable_id + ".json hitting cache.");
+
+		var reponse_object = JSON.parse(response_string);
+
+		var filtered_locations = reponse_object['bus'][timetable_id];
+
+		if (filtered_locations == null) {
+			filtered_locations = [];
+		}
+
+		res.status(200).send(JSON.stringify({ 'bus' : filtered_locations }));
+
+		return;
+	}
+
 
 	refreshBusLocations().then(locations => { 
 
