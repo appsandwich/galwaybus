@@ -24,6 +24,7 @@
 			
 			var map = null;
 			var mapOptions = null;
+			var busMarkers = [];
 			
 			function initialize() {
 				mapOptions = {
@@ -86,12 +87,67 @@
 						
 					});
 				});
-			}
+			};
+
+			function clearBusMarkers() {
+
+				busMarkers.forEach(function(busMarker) {
+					busMarker.setMap(null);
+				});
+
+				busMarkers = [];
+			};
+
+			function getBuses() {
+
+		        var image = {
+		        	url: 'bus.png',
+		        	scaledSize: new google.maps.Size(20, 20),
+		        	origin: new google.maps.Point(0,0),
+		        	anchor: new google.maps.Point(0, 0)
+		        };
+
+				$.getJSON(window.location.protocol + '//galwaybus.herokuapp.com/bus.json', function (data) {
+
+					clearBusMarkers();
+
+					var busRoutes = data['bus'];
+
+					for (var key in busRoutes) {
+
+						if (busRoutes.hasOwnProperty(key)) {
+							
+							var buses = busRoutes[key];
+
+							buses.forEach(function(bus) {
+						
+								// To add the marker to the map, use the 'map' property
+								var marker = new google.maps.Marker({
+								  	position: new google.maps.LatLng(bus.latitude,bus.longitude),
+								  	map: map,
+								  	title: bus.timetable_id,
+								  	icon: image
+								});
+
+								busMarkers.push(marker);
+								
+								marker.setMap(map);
+								
+							});
+						}
+					}
+				});
+			};
+
+			function startBusPolling() {
+				getBuses();
+				setInterval(getBuses, 30000);
+			};
 		  
 		</script>
 		
 	</head>
-	<body onload="getAllStops();">
+	<body onload="getAllStops();startBusPolling();">
 		<a href="https://github.com/appsandwich/galwaybus"><img style="position: absolute; top: 0; right: 0; border: 0; z-index: 999;" src="https://camo.githubusercontent.com/e7bbb0521b397edbd5fe43e7f760759336b5e05f/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f677265656e5f3030373230302e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_green_007200.png"></a>
 		<div id="map-canvas"/>
 	</body>
