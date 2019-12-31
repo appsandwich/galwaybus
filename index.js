@@ -10,8 +10,7 @@ var app = express();
 
 var port = Number(process.env.PORT || 8001);
 
-// var endpoint = 'https://data.dublinked.ie/cgi-bin/rtpi';
-var endpoint = 'https://rtpiapp.rtpi.openskydata.com/RTPIPublicService_v2/service.svc';
+var endpoint = 'https://data.smartdublin.ie/cgi-bin/rtpi';
 
 var factor = 3600000.0;
 
